@@ -1,6 +1,22 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+
+// Android sistem sesini (dın dın) susturmak için method channel
+const _audioChannel = MethodChannel('com.example.aiyardimci/audio');
+
+Future<void> _muteSystem() async {
+  try {
+    await _audioChannel.invokeMethod('muteSystem');
+  } catch (_) {}
+}
+
+Future<void> _unmuteSystem() async {
+  try {
+    await _audioChannel.invokeMethod('unmuteSystem');
+  } catch (_) {}
+}
 
 enum ListenMode { continuous, off }
 
@@ -9,7 +25,8 @@ class SpeechService {
   bool _initialized = false;
   ListenMode _mode = ListenMode.off;
   Timer? _restartTimer;
-  bool _isTransitioning = false; // Geçiş kilidi
+  Timer? _unmuteTimer;
+  bool _isTransitioning = false;
 
   Function(String)? onSpeechResult;
   Function()? onSilence;
@@ -48,7 +65,7 @@ class SpeechService {
     _mode = ListenMode.continuous;
 
     if (_speech.isListening) {
-      await _speech.stop();
+      await _mutedStop();
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
@@ -61,11 +78,13 @@ class SpeechService {
       debugPrint('[MIC] transitioning, skip restart');
       return;
     }
-
     if (_speech.isListening) {
       debugPrint('[MIC] already listening, skip');
       return;
     }
+
+    // Sistem sesini sustur, dinlemeyi başlat, 400ms sonra sesi aç
+    await _muteSystem();
 
     try {
       debugPrint('[MIC] continuous listening...');
@@ -78,7 +97,7 @@ class SpeechService {
               _isTransitioning = true;
               _mode = ListenMode.off;
               _restartTimer?.cancel();
-              _speech.stop().then((_) {
+              _mutedStop().then((_) {
                 _isTransitioning = false;
                 onSpeechResult?.call(text);
               });
@@ -96,13 +115,29 @@ class SpeechService {
       );
     } catch (e) {
       debugPrint('[MIC] continuous error: $e');
+      await _unmuteSystem();
       if (_mode == ListenMode.continuous) {
         _restartTimer?.cancel();
         _restartTimer = Timer(const Duration(seconds: 2), () {
           if (_mode == ListenMode.continuous) _doStartContinuous();
         });
       }
+      return;
     }
+
+    // Dinleme başladı — 400ms sonra sesi geri aç
+    _unmuteTimer?.cancel();
+    _unmuteTimer = Timer(const Duration(milliseconds: 400), _unmuteSystem);
+  }
+
+  // stop() çağrısını da sessizce yap
+  Future<void> _mutedStop() async {
+    await _muteSystem();
+    try {
+      await _speech.stop();
+    } catch (_) {}
+    _unmuteTimer?.cancel();
+    _unmuteTimer = Timer(const Duration(milliseconds: 300), _unmuteSystem);
   }
 
   // ===== KONTROL =====
@@ -111,7 +146,7 @@ class SpeechService {
     _mode = ListenMode.off;
     _restartTimer?.cancel();
     if (_speech.isListening) {
-      try { await _speech.stop(); } catch (_) {}
+      await _mutedStop();
     }
   }
 
