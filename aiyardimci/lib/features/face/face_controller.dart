@@ -39,6 +39,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     final apiKey = _storageService.getApiKey();
     _aiService.updateApiKey(apiKey);
     _ttsService.updateApiKey(apiKey);
+    _speechService.updateApiKey(apiKey);
 
     _wakeName = _storageService.getWakeName();
 
@@ -179,6 +180,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     await _storageService.setApiKey(key);
     _aiService.updateApiKey(key);
     _ttsService.updateApiKey(key);
+    _speechService.updateApiKey(key);
     notifyListeners();
   }
 

@@ -12,12 +12,12 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   provider: ^6.1.2
-  speech_to_text: ^7.0.0
   flutter_tts: ^4.2.0
   shared_preferences: ^2.3.4
   http: ^1.2.2
   audioplayers: ^6.1.0
   path_provider: ^2.1.5
+  record: ^5.1.2
 
 dev_dependencies:
   flutter_test:
