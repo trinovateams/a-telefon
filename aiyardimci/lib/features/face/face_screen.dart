@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/enums/face_state.dart';
 import 'face_controller.dart';
-import 'themes/eye_theme_manager.dart';
 import '../settings/settings_screen.dart';
 
 class FaceScreen extends StatefulWidget {
@@ -74,13 +73,9 @@ class _FaceScreenState extends State<FaceScreen> {
                   ),
                 ),
 
-                // EYE THEME — tam ekran
-                Positioned.fill(
-                  child: EyeThemeManager.getTheme(
-                    controller.currentTheme,
-                    controller.faceState,
-                    controller.currentMood,
-                  ),
+                // EYE — tam ekran (ultra-realistic eye widget buraya gelecek)
+                const Positioned.fill(
+                  child: SizedBox(),
                 ),
 
                 // Durum göstergesi (üst)

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/enums/face_state.dart';
-import '../../core/enums/eye_theme_type.dart';
 import '../../core/services/ai_service.dart';
 import '../../core/services/speech_service.dart';
 import '../../core/services/tts_service.dart';
@@ -16,7 +15,6 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   String _currentMood = 'calm';
   String _lastMessage = '';
   String _lastResponse = '';
-  EyeThemeType _currentTheme = EyeThemeType.defaultTheme;
   String _systemPrompt = '';
   bool _isActive = false;
 
@@ -35,9 +33,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
 
   void _init() {
     _systemPrompt = _storageService.getSystemPrompt();
-    _currentTheme = _storageService.getEyeTheme();
     _aiService.updateSystemPrompt(_systemPrompt);
-    _updateThemePrompt();
 
     // === CALLBACKS ===
 
@@ -100,7 +96,6 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   String get currentMood => _currentMood;
   String get lastMessage => _lastMessage;
   String get lastResponse => _lastResponse;
-  EyeThemeType get currentTheme => _currentTheme;
   String get systemPrompt => _systemPrompt;
   bool get isActive => _isActive;
 
@@ -148,34 +143,6 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   // === AYARLAR ===
-
-  Future<void> setTheme(EyeThemeType theme) async {
-    _currentTheme = theme;
-    await _storageService.setEyeTheme(theme);
-    _updateThemePrompt();
-    notifyListeners();
-  }
-
-  void _updateThemePrompt() {
-    String themePrompt = '';
-    switch (_currentTheme) {
-      case EyeThemeType.anime:
-        themePrompt = 'Sen çok enerjik, dramatik ve ifadecisin.';
-        break;
-      case EyeThemeType.robot:
-        themePrompt = 'Sen mantıksal, kesin ve analitiksin.';
-        break;
-      case EyeThemeType.female:
-        themePrompt = 'Sen zarif, empatik ve akıcısın.';
-        break;
-      case EyeThemeType.cool:
-        themePrompt = 'Sen rahat, kendine güvenen ve doğal havalısın.';
-        break;
-      default:
-        themePrompt = '';
-    }
-    _aiService.updateThemePrompt(themePrompt);
-  }
 
   Future<void> updateSystemPrompt(String prompt) async {
     _systemPrompt = prompt;

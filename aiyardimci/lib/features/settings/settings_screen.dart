@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/enums/eye_theme_type.dart';
 import '../face/face_controller.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -58,12 +57,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionTitle('GÖZ TEMASI', moodColor),
-                const SizedBox(height: 12),
-                _buildThemeSelector(controller, moodColor),
-
-                const SizedBox(height: 32),
-
                 _buildSectionTitle('KİŞİLİK ŞABLONLARı', moodColor),
                 const SizedBox(height: 12),
                 _buildPresetList(controller, moodColor),
@@ -111,73 +104,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         fontWeight: FontWeight.w600,
       ),
     );
-  }
-
-  Widget _buildThemeSelector(FaceController controller, Color moodColor) {
-    return SizedBox(
-      height: 100,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: EyeThemeType.values.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final theme = EyeThemeType.values[index];
-          final isSelected = controller.currentTheme == theme;
-
-          return GestureDetector(
-            onTap: () => controller.setTheme(theme),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 100,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: isSelected
-                    ? moodColor.withValues(alpha: 0.2)
-                    : Colors.white.withValues(alpha: 0.05),
-                border: Border.all(
-                  color: isSelected ? moodColor : Colors.white.withValues(alpha: 0.1),
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    _getThemeIcon(theme),
-                    color: isSelected ? moodColor : Colors.white.withValues(alpha: 0.5),
-                    size: 28,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    theme.displayName,
-                    style: TextStyle(
-                      color: isSelected ? moodColor : Colors.white.withValues(alpha: 0.5),
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  IconData _getThemeIcon(EyeThemeType theme) {
-    switch (theme) {
-      case EyeThemeType.defaultTheme:
-        return Icons.remove_red_eye_outlined;
-      case EyeThemeType.female:
-        return Icons.face_retouching_natural;
-      case EyeThemeType.anime:
-        return Icons.auto_awesome;
-      case EyeThemeType.robot:
-        return Icons.smart_toy_outlined;
-      case EyeThemeType.cool:
-        return Icons.whatshot_outlined;
-    }
   }
 
   Widget _buildPresetList(FaceController controller, Color moodColor) {
