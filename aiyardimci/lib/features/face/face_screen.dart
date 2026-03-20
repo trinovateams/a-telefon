@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/enums/face_state.dart';
 import 'face_controller.dart';
+import 'themes/realistic_eye.dart';
 import '../settings/settings_screen.dart';
 
 class FaceScreen extends StatefulWidget {
@@ -73,9 +74,16 @@ class _FaceScreenState extends State<FaceScreen> {
                   ),
                 ),
 
-                // EYE — tam ekran (ultra-realistic eye widget buraya gelecek)
-                const Positioned.fill(
-                  child: SizedBox(),
+                // EYE — iki ultra-realistik göz
+                Positioned(
+                  top: MediaQuery.of(context).size.height * 0.15,
+                  bottom: MediaQuery.of(context).size.height * 0.25,
+                  left: MediaQuery.of(context).size.width * 0.1,
+                  right: MediaQuery.of(context).size.width * 0.1,
+                  child: RealisticEyeWidget(
+                    state: controller.faceState,
+                    mood: controller.currentMood,
+                  ),
                 ),
 
                 // Durum göstergesi (üst)
@@ -109,11 +117,11 @@ class _FaceScreenState extends State<FaceScreen> {
   double _getMoodGlowIntensity(FaceState state) {
     switch (state) {
       case FaceState.speaking:
-        return 0.12;
-      case FaceState.listening:
         return 0.08;
+      case FaceState.listening:
+        return 0.05;
       case FaceState.thinking:
-        return 0.06;
+        return 0.04;
       case FaceState.idle:
         return 0.02;
     }
@@ -202,9 +210,15 @@ class _FaceScreenState extends State<FaceScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.7),
+          color: Colors.white.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: moodColor.withValues(alpha: 0.2)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          boxShadow: [
+            BoxShadow(
+              color: moodColor.withValues(alpha: 0.05),
+              blurRadius: 20,
+            ),
+          ],
         ),
         child: Text(
           controller.lastResponse,
