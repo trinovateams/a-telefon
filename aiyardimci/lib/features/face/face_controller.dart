@@ -16,6 +16,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   String _lastMessage = '';
   String _lastResponse = '';
   String _systemPrompt = '';
+  String _wakeName = 'Alexia';
   bool _isActive = false;
 
   FaceController({
@@ -39,10 +40,20 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _aiService.updateApiKey(apiKey);
     _ttsService.updateApiKey(apiKey);
 
+    _wakeName = _storageService.getWakeName();
+
     // === CALLBACKS ===
 
     _speechService.onSpeechResult = (text) async {
       debugPrint('[FLOW] 1. heard: "$text"');
+
+      // Wake word kontrolü — isim geçmiyorsa dinlemeye devam et
+      if (!_containsWakeName(text)) {
+        debugPrint('[FLOW] wake word yok, geçiliyor');
+        if (_isActive) _speechService.startContinuous();
+        return;
+      }
+
       _lastMessage = text;
       _faceState = FaceState.thinking;
       notifyListeners();
@@ -94,6 +105,14 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  // Wake word kontrolü — Türkçe büyük/küçük harf toleranslı
+  bool _containsWakeName(String text) {
+    if (_wakeName.trim().isEmpty) return true; // isim boşsa her şeye cevap ver
+    final normalizedText = text.toLowerCase().replaceAll('i̇', 'i').replaceAll('ı', 'i');
+    final normalizedName = _wakeName.toLowerCase().replaceAll('i̇', 'i').replaceAll('ı', 'i');
+    return normalizedText.contains(normalizedName);
+  }
+
   // === GETTERS ===
 
   FaceState get faceState => _faceState;
@@ -101,6 +120,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   String get lastMessage => _lastMessage;
   String get lastResponse => _lastResponse;
   String get systemPrompt => _systemPrompt;
+  String get wakeName => _wakeName;
   bool get isActive => _isActive;
 
   // === PUBLIC ===
@@ -163,6 +183,12 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   String get apiKey => _storageService.getApiKey();
+
+  Future<void> updateWakeName(String name) async {
+    _wakeName = name.trim();
+    await _storageService.setWakeName(_wakeName);
+    notifyListeners();
+  }
 
   void resetChat() {
     _aiService.resetChat();

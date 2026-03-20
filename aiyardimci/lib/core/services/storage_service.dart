@@ -5,6 +5,7 @@ class StorageService {
   static const _keySystemPrompt = 'system_prompt';
   static const _keyFirstLaunch = 'first_launch';
   static const _keyApiKey = 'gemini_api_key';
+  static const _keyWakeName = 'wake_name';
 
   late SharedPreferences _prefs;
 
@@ -35,5 +36,13 @@ class StorageService {
 
   Future<void> setApiKey(String key) async {
     await _prefs.setString(_keyApiKey, key);
+  }
+
+  String getWakeName() {
+    return _prefs.getString(_keyWakeName) ?? 'Alexia';
+  }
+
+  Future<void> setWakeName(String name) async {
+    await _prefs.setString(_keyWakeName, name);
   }
 }

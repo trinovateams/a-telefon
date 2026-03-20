@@ -133,7 +133,8 @@ class _FaceScreenState extends State<FaceScreen> {
 
     switch (controller.faceState) {
       case FaceState.idle:
-        label = '"Hey Alexia" de...';
+        final name = controller.wakeName.isEmpty ? 'Alexia' : controller.wakeName;
+        label = '"Hey $name" de...';
         icon = Icons.hearing_rounded;
         break;
       case FaceState.listening:

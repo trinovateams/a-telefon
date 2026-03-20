@@ -14,6 +14,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _promptController;
   late TextEditingController _apiKeyController;
+  late TextEditingController _wakeNameController;
   bool _apiKeyObscured = true;
 
   @override
@@ -23,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final controller = context.read<FaceController>();
     _promptController = TextEditingController(text: controller.systemPrompt);
     _apiKeyController = TextEditingController(text: controller.apiKey);
+    _wakeNameController = TextEditingController(text: controller.wakeName);
   }
 
   @override
@@ -30,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _promptController.dispose();
     _apiKeyController.dispose();
+    _wakeNameController.dispose();
     super.dispose();
   }
 
@@ -64,6 +67,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildSectionTitle('UYANDIRMA İSMİ', moodColor),
+                const SizedBox(height: 12),
+                _buildWakeNameEditor(controller, moodColor),
+
+                const SizedBox(height: 32),
+
                 _buildSectionTitle('GEMİNİ API KEY', moodColor),
                 const SizedBox(height: 12),
                 _buildApiKeyEditor(controller, moodColor),
@@ -116,6 +125,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
         letterSpacing: 2,
         fontWeight: FontWeight.w600,
       ),
+    );
+  }
+
+  Widget _buildWakeNameEditor(FaceController controller, Color moodColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: TextField(
+            controller: _wakeNameController,
+            style: const TextStyle(color: Colors.white, fontSize: 15),
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              hintText: 'Alexia',
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              prefixIcon: Icon(
+                Icons.record_voice_over_outlined,
+                color: moodColor.withValues(alpha: 0.6),
+                size: 20,
+              ),
+            ),
+            onSubmitted: (name) => controller.updateWakeName(name),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Sadece bu ismi duyunca cevap verir. Boş bırakırsan her şeye cevap verir.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.3),
+            fontSize: 11,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              final name = _wakeNameController.text.trim();
+              controller.updateWakeName(name);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    name.isEmpty
+                        ? 'İsim kaldırıldı — her şeye cevap verir'
+                        : '"$name" ismi kaydedildi',
+                  ),
+                  backgroundColor: moodColor.withValues(alpha: 0.8),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: moodColor.withValues(alpha: 0.2),
+              foregroundColor: moodColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: moodColor.withValues(alpha: 0.5)),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: const Text('KAYDET', style: TextStyle(letterSpacing: 1.5, fontSize: 13)),
+          ),
+        ),
+      ],
     );
   }
 
