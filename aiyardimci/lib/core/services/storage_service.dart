@@ -6,6 +6,7 @@ class StorageService {
   static const _keyFirstLaunch = 'first_launch';
   static const _keyApiKey = 'gemini_api_key';
   static const _keyWakeName = 'wake_name';
+  static const _keyVoiceGender = 'voice_gender';
 
   late SharedPreferences _prefs;
 
@@ -44,5 +45,14 @@ class StorageService {
 
   Future<void> setWakeName(String name) async {
     await _prefs.setString(_keyWakeName, name);
+  }
+
+  /// 'female' veya 'male'
+  String getVoiceGender() {
+    return _prefs.getString(_keyVoiceGender) ?? 'female';
+  }
+
+  Future<void> setVoiceGender(String gender) async {
+    await _prefs.setString(_keyVoiceGender, gender);
   }
 }

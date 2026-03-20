@@ -7,14 +7,29 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import '../constants/app_constants.dart';
 
+/// Gemini prebuilt ses isimleri
+class GeminiVoice {
+  static const String female = 'Aoede';  // sıcak, doğal kadın sesi
+  static const String male = 'Charon';   // derin, bilgili erkek sesi
+
+  static String fromGender(String gender) {
+    return gender == 'male' ? male : female;
+  }
+}
+
 class TtsService {
   final FlutterTts _tts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isSpeaking = false;
   String _apiKey = AppConstants.geminiApiKey;
+  String _voiceName = GeminiVoice.female;
 
   void updateApiKey(String key) {
     _apiKey = key;
+  }
+
+  void updateVoice(String gender) {
+    _voiceName = GeminiVoice.fromGender(gender);
   }
 
   Function()? onStart;
@@ -72,15 +87,16 @@ class TtsService {
     if (apiKey.isEmpty) return false;
 
     try {
+      // gemini-2.0-flash-preview-tts: TTS için özel model
       final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-tts:generateContent?key=$apiKey',
       );
 
       final body = {
         'contents': [
           {
             'parts': [
-              {'text': 'Şu metni aynen, doğal bir Türkçe tonlamayla oku. Hiçbir şey ekleme, sadece oku: $text'}
+              {'text': text}
             ],
           }
         ],
@@ -89,7 +105,7 @@ class TtsService {
           'speechConfig': {
             'voiceConfig': {
               'prebuiltVoiceConfig': {
-                'voiceName': 'Kore',
+                'voiceName': _voiceName,
               },
             },
           },

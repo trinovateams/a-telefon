@@ -94,15 +94,6 @@ class _FaceScreenState extends State<FaceScreen> {
                   child: _buildStateIndicator(controller, moodColor),
                 ),
 
-                // Yanıt metni (alt)
-                if (controller.lastResponse.isNotEmpty)
-                  Positioned(
-                    bottom: _showControls ? 80 : 20,
-                    left: 40,
-                    right: 40,
-                    child: _buildResponseBubble(controller, moodColor),
-                  ),
-
                 // Kontroller (ekrana dokunulunca görünür)
                 if (_showControls)
                   _buildOverlayControls(controller, moodColor),
@@ -199,38 +190,6 @@ class _FaceScreenState extends State<FaceScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResponseBubble(FaceController controller, Color moodColor) {
-    return AnimatedOpacity(
-      opacity: controller.faceState == FaceState.speaking ? 1.0 : 0.6,
-      duration: const Duration(milliseconds: 500),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-          boxShadow: [
-            BoxShadow(
-              color: moodColor.withValues(alpha: 0.05),
-              blurRadius: 20,
-            ),
-          ],
-        ),
-        child: Text(
-          controller.lastResponse,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.85),
-            fontSize: 13,
-            height: 1.4,
-          ),
         ),
       ),
     );

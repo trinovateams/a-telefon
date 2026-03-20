@@ -41,6 +41,9 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _ttsService.updateApiKey(apiKey);
     _speechService.updateApiKey(apiKey);
 
+    final voiceGender = _storageService.getVoiceGender();
+    _ttsService.updateVoice(voiceGender);
+
     _wakeName = _storageService.getWakeName();
 
     // === CALLBACKS ===
@@ -191,6 +194,14 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     await _storageService.setWakeName(_wakeName);
     notifyListeners();
   }
+
+  Future<void> updateVoiceGender(String gender) async {
+    await _storageService.setVoiceGender(gender);
+    _ttsService.updateVoice(gender);
+    notifyListeners();
+  }
+
+  String get voiceGender => _storageService.getVoiceGender();
 
   void resetChat() {
     _aiService.resetChat();

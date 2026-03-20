@@ -67,6 +67,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildSectionTitle('SES', moodColor),
+                const SizedBox(height: 12),
+                _buildVoiceSelector(controller, moodColor),
+
+                const SizedBox(height: 32),
+
                 _buildSectionTitle('UYANDIRMA İSMİ', moodColor),
                 const SizedBox(height: 12),
                 _buildWakeNameEditor(controller, moodColor),
@@ -124,6 +130,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
         fontSize: 11,
         letterSpacing: 2,
         fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  Widget _buildVoiceSelector(FaceController controller, Color moodColor) {
+    final current = controller.voiceGender;
+    return Row(
+      children: [
+        Expanded(
+          child: _buildVoiceOption(
+            gender: 'female',
+            label: 'Kadın',
+            subtitle: 'Aoede · Sıcak & Doğal',
+            icon: Icons.face_retouching_natural_rounded,
+            selected: current == 'female',
+            moodColor: moodColor,
+            onTap: () => controller.updateVoiceGender('female'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildVoiceOption(
+            gender: 'male',
+            label: 'Erkek',
+            subtitle: 'Charon · Derin & Net',
+            icon: Icons.face_rounded,
+            selected: current == 'male',
+            moodColor: moodColor,
+            onTap: () => controller.updateVoiceGender('male'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVoiceOption({
+    required String gender,
+    required String label,
+    required String subtitle,
+    required IconData icon,
+    required bool selected,
+    required Color moodColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: selected
+              ? moodColor.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.05),
+          border: Border.all(
+            color: selected ? moodColor : Colors.white.withValues(alpha: 0.1),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: selected ? moodColor : Colors.white.withValues(alpha: 0.4),
+              size: 32,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? moodColor : Colors.white70,
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.35),
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
