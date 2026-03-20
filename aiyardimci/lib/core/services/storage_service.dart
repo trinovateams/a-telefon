@@ -4,6 +4,7 @@ import '../constants/app_constants.dart';
 class StorageService {
   static const _keySystemPrompt = 'system_prompt';
   static const _keyFirstLaunch = 'first_launch';
+  static const _keyApiKey = 'gemini_api_key';
 
   late SharedPreferences _prefs;
 
@@ -24,5 +25,15 @@ class StorageService {
 
   Future<void> setSystemPrompt(String prompt) async {
     await _prefs.setString(_keySystemPrompt, prompt);
+  }
+
+  String getApiKey() {
+    final stored = _prefs.getString(_keyApiKey) ?? '';
+    if (stored.isNotEmpty) return stored;
+    return AppConstants.geminiApiKey; // dart-define fallback
+  }
+
+  Future<void> setApiKey(String key) async {
+    await _prefs.setString(_keyApiKey, key);
   }
 }

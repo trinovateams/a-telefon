@@ -35,6 +35,10 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _systemPrompt = _storageService.getSystemPrompt();
     _aiService.updateSystemPrompt(_systemPrompt);
 
+    final apiKey = _storageService.getApiKey();
+    _aiService.updateApiKey(apiKey);
+    _ttsService.updateApiKey(apiKey);
+
     // === CALLBACKS ===
 
     _speechService.onSpeechResult = (text) async {
@@ -150,6 +154,15 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _aiService.updateSystemPrompt(prompt);
     notifyListeners();
   }
+
+  Future<void> updateApiKey(String key) async {
+    await _storageService.setApiKey(key);
+    _aiService.updateApiKey(key);
+    _ttsService.updateApiKey(key);
+    notifyListeners();
+  }
+
+  String get apiKey => _storageService.getApiKey();
 
   void resetChat() {
     _aiService.resetChat();

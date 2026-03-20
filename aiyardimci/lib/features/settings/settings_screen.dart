@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../face/face_controller.dart';
@@ -12,17 +13,23 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _promptController;
+  late TextEditingController _apiKeyController;
+  bool _apiKeyObscured = true;
 
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     final controller = context.read<FaceController>();
     _promptController = TextEditingController(text: controller.systemPrompt);
+    _apiKeyController = TextEditingController(text: controller.apiKey);
   }
 
   @override
   void dispose() {
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _promptController.dispose();
+    _apiKeyController.dispose();
     super.dispose();
   }
 
@@ -57,6 +64,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildSectionTitle('GEMİNİ API KEY', moodColor),
+                const SizedBox(height: 12),
+                _buildApiKeyEditor(controller, moodColor),
+
+                const SizedBox(height: 32),
+
                 _buildSectionTitle('KİŞİLİK ŞABLONLARı', moodColor),
                 const SizedBox(height: 12),
                 _buildPresetList(controller, moodColor),
@@ -103,6 +116,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
         letterSpacing: 2,
         fontWeight: FontWeight.w600,
       ),
+    );
+  }
+
+  Widget _buildApiKeyEditor(FaceController controller, Color moodColor) {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: TextField(
+            controller: _apiKeyController,
+            obscureText: _apiKeyObscured,
+            style: const TextStyle(color: Colors.white, fontSize: 13, fontFamily: 'monospace'),
+            decoration: InputDecoration(
+              hintText: 'AIzaSy...',
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _apiKeyObscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: Colors.white.withValues(alpha: 0.4),
+                  size: 18,
+                ),
+                onPressed: () => setState(() => _apiKeyObscured = !_apiKeyObscured),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Google AI Studio → API Key bölümünden ücretsiz alabilirsin.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.3),
+            fontSize: 11,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () async {
+              final key = _apiKeyController.text.trim();
+              await controller.updateApiKey(key);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('API key kaydedildi'),
+                  backgroundColor: moodColor.withValues(alpha: 0.8),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: moodColor.withValues(alpha: 0.2),
+              foregroundColor: moodColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: moodColor.withValues(alpha: 0.5)),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: const Text('KAYDET', style: TextStyle(letterSpacing: 1.5, fontSize: 13)),
+          ),
+        ),
+      ],
     );
   }
 

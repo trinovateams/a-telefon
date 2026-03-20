@@ -11,6 +11,11 @@ class TtsService {
   final FlutterTts _tts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isSpeaking = false;
+  String _apiKey = AppConstants.geminiApiKey;
+
+  void updateApiKey(String key) {
+    _apiKey = key;
+  }
 
   Function()? onStart;
   Function()? onComplete;
@@ -63,7 +68,7 @@ class TtsService {
   }
 
   Future<bool> _speakWithGemini(String text) async {
-    final apiKey = AppConstants.geminiApiKey;
+    final apiKey = _apiKey;
     if (apiKey.isEmpty) return false;
 
     try {

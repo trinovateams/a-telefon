@@ -5,7 +5,12 @@ import '../constants/app_constants.dart';
 
 class AiService {
   String _systemPrompt = AppConstants.defaultSystemPrompt;
+  String _apiKey = AppConstants.geminiApiKey;
   final List<Map<String, dynamic>> _chatHistory = [];
+
+  void updateApiKey(String key) {
+    _apiKey = key;
+  }
 
   String _buildFullPrompt() {
     final buffer = StringBuffer();
@@ -29,7 +34,7 @@ class AiService {
   String get currentPrompt => _systemPrompt;
 
   Future<Map<String, String>> sendMessage(String message) async {
-    final apiKey = AppConstants.geminiApiKey;
+    final apiKey = _apiKey;
 
     // Kullanıcı mesajını history'ye ekle
     _chatHistory.add({
