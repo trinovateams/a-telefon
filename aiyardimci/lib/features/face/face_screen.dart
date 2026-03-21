@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/enums/face_state.dart';
+import '../../core/enums/idle_behavior.dart';
+import '../../core/enums/connection_state.dart';
 import 'face_controller.dart';
 import 'themes/realistic_eye.dart';
 import '../settings/settings_screen.dart';
@@ -51,7 +53,6 @@ class _FaceScreenState extends State<FaceScreen>
           body: GestureDetector(
             onTap: () {
               setState(() => _showControls = !_showControls);
-              // 5 saniye sonra otomatik gizle
               if (_showControls) {
                 Future.delayed(const Duration(seconds: 5), () {
                   if (mounted && _showControls && !_showTextInput) {
@@ -62,7 +63,7 @@ class _FaceScreenState extends State<FaceScreen>
             },
             child: Stack(
               children: [
-                // Derin siyah + ambient mood rengi — konuşurken daha yoğun
+                // Ambient background
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 800),
                   width: double.infinity,
@@ -72,7 +73,7 @@ class _FaceScreenState extends State<FaceScreen>
                       center: Alignment.center,
                       radius: controller.faceState == FaceState.speaking ? 1.5 : 1.2,
                       colors: [
-                        moodColor.withValues(alpha: _getMoodGlowIntensity(controller.faceState)),
+                        moodColor.withValues(alpha: _getMoodGlowIntensity(controller)),
                         Color.lerp(
                           const Color(0xFF020202),
                           moodColor.withValues(alpha: 0.04),
@@ -84,7 +85,7 @@ class _FaceScreenState extends State<FaceScreen>
                   ),
                 ),
 
-                // EYE — konuşurken nefes efekti (küçülüp büyüme)
+                // EYE
                 Positioned(
                   top: MediaQuery.of(context).size.height * 0.35,
                   bottom: MediaQuery.of(context).size.height * 0.35,
@@ -94,7 +95,6 @@ class _FaceScreenState extends State<FaceScreen>
                     animation: _breathController,
                     builder: (context, child) {
                       final isSpeaking = controller.faceState == FaceState.speaking;
-                      // Konuşurken 0.95–1.05 arası nefes, değilse sabit 1.0
                       final scale = isSpeaking
                           ? 0.95 + _breathController.value * 0.10
                           : 1.0;
@@ -106,11 +106,12 @@ class _FaceScreenState extends State<FaceScreen>
                     child: RealisticEyeWidget(
                       state: controller.faceState,
                       mood: controller.currentMood,
+                      idleBehavior: controller.idleBehavior,
                     ),
                   ),
                 ),
 
-                // Durum göstergesi (üst)
+                // Status indicator (top)
                 Positioned(
                   top: 16,
                   left: 0,
@@ -118,7 +119,7 @@ class _FaceScreenState extends State<FaceScreen>
                   child: _buildStateIndicator(controller, moodColor),
                 ),
 
-                // Kontroller (ekrana dokunulunca görünür)
+                // Controls overlay
                 if (_showControls)
                   _buildOverlayControls(controller, moodColor),
               ],
@@ -129,10 +130,13 @@ class _FaceScreenState extends State<FaceScreen>
     );
   }
 
-  double _getMoodGlowIntensity(FaceState state) {
-    switch (state) {
+  double _getMoodGlowIntensity(FaceController controller) {
+    // Sleeping = very dim
+    if (controller.idleBehavior == IdleBehavior.sleeping) return 0.02;
+
+    switch (controller.faceState) {
       case FaceState.speaking:
-        return 0.35; // konuşurken belirgin ambiyans
+        return 0.35;
       case FaceState.listening:
         return 0.12;
       case FaceState.thinking:
@@ -143,77 +147,193 @@ class _FaceScreenState extends State<FaceScreen>
   }
 
   Widget _buildStateIndicator(FaceController controller, Color moodColor) {
-    String label = '';
-    IconData? icon;
+    // Connection error takes priority
+    if (controller.connectionState == LiveConnectionState.error) {
+      return _buildStatusChip(
+        'BAĞLANTI HATASI',
+        Icons.error_outline_rounded,
+        Colors.redAccent,
+        onTap: () => controller.resetChat(),
+        suffix: '(dokun)',
+      );
+    }
+    if (controller.connectionState == LiveConnectionState.connecting ||
+        controller.connectionState == LiveConnectionState.reconnecting) {
+      return _buildStatusChip(
+        'BAĞLANIYOR...',
+        Icons.sync_rounded,
+        Colors.orangeAccent,
+      );
+    }
+
+    String label;
+    IconData icon;
+    Color color;
+    bool showDot = true;
 
     switch (controller.faceState) {
       case FaceState.idle:
-        final name = controller.wakeName.isEmpty ? 'Alexia' : controller.wakeName;
-        label = '"Hey $name" de...';
-        icon = Icons.hearing_rounded;
+        showDot = false;
+        if (controller.idleBehavior == IdleBehavior.sleeping) {
+          label = 'zzZ...';
+          icon = Icons.nightlight_round;
+          color = Colors.indigo.withValues(alpha: 0.7);
+        } else if (controller.energy < 0.3) {
+          label = 'uykulum...';
+          icon = Icons.bedtime_rounded;
+          color = Colors.white.withValues(alpha: 0.4);
+        } else if (controller.boredom > 0.5) {
+          label = 'canım sıkılıyor...';
+          icon = Icons.sentiment_dissatisfied_rounded;
+          color = Colors.white.withValues(alpha: 0.4);
+        } else {
+          final name = controller.wakeName.isEmpty ? 'Alexia' : controller.wakeName;
+          label = '"Hey $name" de...';
+          icon = Icons.hearing_rounded;
+          color = Colors.white.withValues(alpha: 0.3);
+        }
         break;
       case FaceState.listening:
         label = 'DİNLİYORUM...';
         icon = Icons.mic_rounded;
+        color = moodColor;
         break;
       case FaceState.thinking:
         label = 'DÜŞÜNÜYORUM...';
         icon = Icons.psychology_rounded;
+        color = moodColor;
         break;
       case FaceState.speaking:
         label = 'KONUŞUYORUM...';
         icon = Icons.volume_up_rounded;
+        color = moodColor;
         break;
     }
 
     return Center(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 400),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: controller.faceState == FaceState.idle
-              ? Colors.white.withValues(alpha: 0.05)
-              : moodColor.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: controller.faceState == FaceState.idle
-                ? Colors.white.withValues(alpha: 0.1)
-                : moodColor.withValues(alpha: 0.4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Status chip
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: controller.faceState == FaceState.idle
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : moodColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: controller.faceState == FaceState.idle
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : moodColor.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showDot)
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: moodColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: moodColor.withValues(alpha: 0.6),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                Icon(icon, color: color, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (controller.faceState != FaceState.idle)
+          const SizedBox(height: 6),
+          // Energy bar
+          GestureDetector(
+            onTap: () => controller.boostEnergy(),
+            child: Container(
+              width: 60,
+              height: 4,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(2),
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: controller.energy.clamp(0.0, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    color: controller.energy > 0.5
+                        ? moodColor.withValues(alpha: 0.5)
+                        : controller.energy > 0.2
+                            ? Colors.orangeAccent.withValues(alpha: 0.5)
+                            : Colors.redAccent.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String label, IconData icon, Color color,
+      {VoidCallback? onTap, String? suffix}) {
+    return Center(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Container(
                 width: 8,
                 height: 8,
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: moodColor,
+                  color: color,
                   boxShadow: [
-                    BoxShadow(
-                      color: moodColor.withValues(alpha: 0.6),
-                      blurRadius: 8,
-                    ),
+                    BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 8),
                   ],
                 ),
               ),
-            Icon(icon, color: moodColor.withValues(alpha: 0.7), size: 16),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: controller.faceState == FaceState.idle
-                    ? Colors.white.withValues(alpha: 0.3)
-                    : moodColor,
-                fontSize: 11,
-                letterSpacing: 1.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+              Icon(icon, color: color.withValues(alpha: 0.7), size: 16),
+              const SizedBox(width: 6),
+              Text(label, style: TextStyle(
+                color: color, fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.w500,
+              )),
+              if (suffix != null) ...[
+                const SizedBox(width: 6),
+                Text(suffix, style: TextStyle(
+                  color: color.withValues(alpha: 0.5), fontSize: 9,
+                )),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -240,7 +360,6 @@ class _FaceScreenState extends State<FaceScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Text input
               if (_showTextInput)
                 Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -275,11 +394,9 @@ class _FaceScreenState extends State<FaceScreen>
                   ),
                 ),
 
-              // Butonlar
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Yazı modu
                   _buildControlButton(
                     icon: Icons.keyboard_rounded,
                     color: moodColor,
@@ -291,7 +408,6 @@ class _FaceScreenState extends State<FaceScreen>
                   ),
                   const SizedBox(width: 16),
 
-                  // Konuşmayı durdur
                   if (controller.faceState == FaceState.speaking)
                     _buildControlButton(
                       icon: Icons.stop_rounded,
@@ -303,7 +419,6 @@ class _FaceScreenState extends State<FaceScreen>
                   if (controller.faceState == FaceState.speaking)
                     const SizedBox(width: 16),
 
-                  // Sıfırla
                   _buildControlButton(
                     icon: Icons.refresh_rounded,
                     color: moodColor,
@@ -312,7 +427,6 @@ class _FaceScreenState extends State<FaceScreen>
                   ),
                   const SizedBox(width: 16),
 
-                  // Ayarlar
                   _buildControlButton(
                     icon: Icons.tune_rounded,
                     color: moodColor,

@@ -73,6 +73,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 const SizedBox(height: 32),
 
+                _buildSectionTitle('BEYİN AYARLARI', moodColor),
+                const SizedBox(height: 12),
+                _buildBrainSettings(controller, moodColor),
+
+                const SizedBox(height: 32),
+
                 _buildSectionTitle('UYANDIRMA İSMİ', moodColor),
                 const SizedBox(height: 12),
                 _buildWakeNameEditor(controller, moodColor),
@@ -443,6 +449,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBrainSettings(FaceController controller, Color moodColor) {
+    final storage = controller.storageService;
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        children: [
+          SwitchListTile(
+            title: const Text('Proaktif Konuşma', style: TextStyle(color: Colors.white, fontSize: 14)),
+            subtitle: Text(
+              'Alexia kendi kendine konuşsun',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+            ),
+            value: storage.getProactiveSpeech(),
+            activeTrackColor: moodColor.withValues(alpha: 0.5),
+            onChanged: (v) async {
+              await storage.setProactiveSpeech(v);
+              setState(() {});
+            },
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
+          SwitchListTile(
+            title: const Text('Uyku Modu', style: TextStyle(color: Colors.white, fontSize: 14)),
+            subtitle: Text(
+              'Gece otomatik uyuklama',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+            ),
+            value: storage.getSleepMode(),
+            activeTrackColor: moodColor.withValues(alpha: 0.5),
+            onChanged: (v) async {
+              await storage.setSleepMode(v);
+              setState(() {});
+            },
+          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
+          SwitchListTile(
+            title: const Text('Hafıza', style: TextStyle(color: Colors.white, fontSize: 14)),
+            subtitle: Text(
+              'Konuşmaları hatırlasın',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+            ),
+            value: storage.getMemoryEnabled(),
+            activeTrackColor: moodColor.withValues(alpha: 0.5),
+            onChanged: (v) async {
+              await storage.setMemoryEnabled(v);
+              setState(() {});
+            },
+          ),
+        ],
+      ),
     );
   }
 
