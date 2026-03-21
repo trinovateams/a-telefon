@@ -12,13 +12,15 @@
 - `tts_service.dart` silinecek — Live API sesli yanit veriyor
 - `ai_service.dart` silinecek — Live API chat yapiyor
 - Ilgili import'lar temizlenecek
+- **On kosul:** Silmeden once `grep` ile import/referans taranacak, aktif kullanim varsa once kaldirilacak
 
 ### 1.2 Buffer drain fix
 Mevcut sabit 2 saniyelik bekleme kaldirilacak. Yerine:
-- `_onMessage` icerisinde gelen audio chunk'larin toplam byte miktari takip edilecek
-- `turnComplete` geldiginde: `totalBytes / (24000 * 2)` = gercek sure (saniye)
-- Hesaplanan sure + 200ms margin kadar bekle, sonra mic ac
-- Her yeni turn basinda `totalBytes` sifirlanir
+- `flutter_sound` player'in `onProgress` stream'i kullanilacak
+- `turnComplete` geldiginde bir flag set edilir: `_turnDone = true`
+- `onProgress` callback'inde player durumunu kontrol et: player durmus veya progress artmiyor ise mic ac
+- Fallback: `turnComplete`'den 5 saniye gecmis ve hala progress geliyorsa zorla mic ac
+- Bu yaklasim byte saymaktan daha guvenilir cunku player'in gercek durumunu izler
 
 ### 1.3 Baglanti hatasi geri bildirimi
 - `FaceController`'a `connectionState` enum eklenir: `connecting`, `connected`, `error`, `reconnecting`
@@ -74,9 +76,22 @@ enum IdleBehavior { normal, curious, sleepy, sleeping }
 - diger → normal
 
 ### 2.5 LiveAudioService entegrasyonu
-- Brain, `LiveAudioService.sendText()` ile Gemini'ye bağlamsal prompt gonderir
+- Brain, `LiveAudioService.sendText()` ile Gemini'ye baglamsal prompt gonderir
 - Gemini sesli yanit uretir, normal akisla calinir
-- `onSpeaking/onListening` callback'leri Brain'e de iletilir (boredom/energy guncelleme icin)
+
+**Callback yonetimi — FaceController mediator pattern:**
+- `LiveAudioService` callback'leri tek sahipli kalir (`Function?`)
+- `FaceController` tum callback'leri alir (mevcut yapiyla ayni)
+- `FaceController` ilgili olaylari `BrainService`'e iletir:
+  - `onSpeaking` → `brainService.onInteraction()` (boredom=0, energy+=0.1)
+  - `onListening` → `brainService.onTurnEnd()`
+  - `onTextOutput` → `brainService.onTextReceived(text)` → memory'e kaydet
+- Bu yaklasim mevcut callback yapisini bozmaz, sadece FaceController'a forwarding ekler
+
+**Yeni callback — `onTextOutput`:**
+- `LiveAudioService`'e `Function(String)? onTextOutput` eklenir
+- `_onMessage` icerisinde text parse edildigi yerde (mood tag yaninda) cagirilir
+- Ham text'i disari verir, MemoryService icin gerekli
 
 ---
 
@@ -97,15 +112,19 @@ enum IdleBehavior { normal, curious, sleepy, sleeping }
 - `SharedPreferences`'a JSON list olarak kaydedilir
 - Max 50 ani (FIFO)
 - Format: `{ "summary": "...", "date": "2026-03-21", "mood": "happy" }`
+- Okuma sirasinda try/catch ile koruma — JSON bozulursa bos liste ile devam et
+- Not: SharedPreferences 50 kisa ozet icin yeterli. Gelecekte buyurse sqflite'a gecilebilir
 
 ### 3.4 Kullanim
+- Anilar sadece **oturum baslangicinda** system prompt'a eklenir (`_buildSetup()` cagirilmadan once)
+- Oturum ici yeni anilar bir sonraki baglantida aktif olur (Live API system instruction'i mid-session degistiremez)
 - System prompt'a son 5-10 ani eklenir:
   ```
   Hatirladiklarin:
   - 2 gun once: Kullanici futbol macindan bahsetti
   - Dun: Kullanici sinavdan stresli oldugunu soyledi
   ```
-- Brain service proaktif konusma tetiklediginde anilari kullanir
+- Brain service proaktif konusma tetiklediginde anilari kullanir (sendText icinde baglam olarak gonderir)
 
 ---
 
@@ -136,9 +155,23 @@ Brain service'in icerisine entegre.
 ## 5. Idle Animasyonlar — Cozmo Tarzi
 
 ### 5.1 Squash sistemi
-- `RealisticEyePainter`'a `squash` parametresi (0.0-1.0)
-- Canvas `scale(1.0, 1.0 - squash)` transform ile dikey ezilir
+- `RealisticEyePainter`'a `squash` parametresi (0.0-1.0) eklenir
+- squash = 0.0: tam acik, squash = 1.0: tamamen kapali (gorunmez)
+- Painter `paint()` metodunda uygulanir: gozun merkezine translate → `scale(1.0, 1.0 - squash)` → geri translate
+  - Bu center-relative scaling saglar, goz asagi kaymaz
 - Mevcut iris/pupil render bozulmaz
+
+**Veri akisi (squash):**
+```
+BrainService.idleBehavior
+  → FaceController._idleBehavior (notify)
+  → RealisticEyeWidget (yeni parametre: IdleBehavior idleBehavior)
+  → _blinkController (yeni AnimationController, 250ms)
+  → RealisticEyePainter(squash: _blinkAnim.value)
+```
+- `RealisticEyeWidget` hem `FaceState` hem `IdleBehavior` alir — ikisi bagimsiz
+- Blink animasyonu widget icerisinde yonetilir (timer + AnimationController)
+- Uyku/esneme squash degerleri BrainService'den gelir, widget'ta animate edilir
 
 ### 5.2 Blink
 - Her 3-7 saniyede rastgele tetiklenir
@@ -195,7 +228,10 @@ Brain service'in icerisine entegre.
 ### 6.3 Enerji gostergesi (FaceScreen)
 - Status indicator yaninda kucuk enerji bari
 - Brain'in energy degerini gosterir
-- Dokunulunca "kahve" efekti: energy +0.3, Alexia tepki verir
+- Dokunulunca "kahve" efekti:
+  - `brainService.boost()` cagirilir: energy += 0.3 (max 1.0)
+  - `liveService.sendText("Birisi sana enerji verdi, sevin!")` ile Alexia tepki verir
+  - 5dk cooldown — spam onleme
 
 ### 6.4 Durum mesajlari
 | Durum | Mesaj |
@@ -245,7 +281,22 @@ BrainService (30s dongu)
 
 ---
 
-## 8. Implementasyon Sirasi
+## 8. Ek Notlar
+
+### 8.1 State persistence
+- `energy`, `boredom`, `affection` degerleri uygulama kapandiginda SharedPreferences'a kaydedilir
+- Acilista geri yuklenir, ancak gecen sure hesaplanir:
+  - Kapanma → acilma arasi > 6 saat ise energy saat bazli reset (sabah yuksek, gece dusuk)
+  - Kapanma → acilma arasi < 6 saat ise kaydedilen degerlerle devam
+
+### 8.2 Batarya optimizasyonu
+- Uyku modunda (sleeping) brain timer'i 60 saniyeye cikar (30 yerine)
+- Saccade ve micro jitter durdurulur
+- Sadece kullanici etkilesimi timer'i normale dondurur
+
+---
+
+## 9. Implementasyon Sirasi
 
 1. Olu kodu sil + bug fix'ler
 2. Blink + squash animasyonu
