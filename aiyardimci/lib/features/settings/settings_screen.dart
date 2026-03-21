@@ -29,7 +29,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    SystemChrome.setPreferredOrientations([]);
     _promptController.dispose();
     _apiKeyController.dispose();
     _wakeNameController.dispose();

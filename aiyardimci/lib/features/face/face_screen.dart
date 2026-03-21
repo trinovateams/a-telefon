@@ -13,15 +13,21 @@ class FaceScreen extends StatefulWidget {
   State<FaceScreen> createState() => _FaceScreenState();
 }
 
-class _FaceScreenState extends State<FaceScreen> {
+class _FaceScreenState extends State<FaceScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
   bool _showControls = false;
   bool _showTextInput = false;
+  late AnimationController _breathController;
 
   @override
   void initState() {
     super.initState();
-    // Uygulama açıldığında sürekli dinlemeyi başlat
+    _breathController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FaceController>().activate();
     });
@@ -29,6 +35,7 @@ class _FaceScreenState extends State<FaceScreen> {
 
   @override
   void dispose() {
+    _breathController.dispose();
     _textController.dispose();
     super.dispose();
   }
@@ -40,7 +47,7 @@ class _FaceScreenState extends State<FaceScreen> {
         final moodColor = MoodColors.getColor(controller.currentMood);
 
         return Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: const Color(0xFF020202),
           body: GestureDetector(
             onTap: () {
               setState(() => _showControls = !_showControls);
@@ -55,34 +62,51 @@ class _FaceScreenState extends State<FaceScreen> {
             },
             child: Stack(
               children: [
-                // Siyah arka plan + mood glow
+                // Derin siyah + ambient mood rengi — konuşurken daha yoğun
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 1000),
+                  duration: const Duration(milliseconds: 800),
                   width: double.infinity,
                   height: double.infinity,
                   decoration: BoxDecoration(
                     gradient: RadialGradient(
                       center: Alignment.center,
-                      radius: 1.5,
+                      radius: controller.faceState == FaceState.speaking ? 1.5 : 1.2,
                       colors: [
                         moodColor.withValues(alpha: _getMoodGlowIntensity(controller.faceState)),
-                        Colors.black,
-                        Colors.black,
+                        Color.lerp(
+                          const Color(0xFF020202),
+                          moodColor.withValues(alpha: 0.04),
+                          controller.faceState == FaceState.speaking ? 1.0 : 0.0,
+                        )!,
                       ],
-                      stops: const [0.0, 0.4, 1.0],
+                      stops: const [0.0, 1.0],
                     ),
                   ),
                 ),
 
-                // EYE — iki ultra-realistik göz
+                // EYE — konuşurken nefes efekti (küçülüp büyüme)
                 Positioned(
-                  top: MediaQuery.of(context).size.height * 0.15,
-                  bottom: MediaQuery.of(context).size.height * 0.25,
-                  left: MediaQuery.of(context).size.width * 0.1,
-                  right: MediaQuery.of(context).size.width * 0.1,
-                  child: RealisticEyeWidget(
-                    state: controller.faceState,
-                    mood: controller.currentMood,
+                  top: MediaQuery.of(context).size.height * 0.35,
+                  bottom: MediaQuery.of(context).size.height * 0.35,
+                  left: MediaQuery.of(context).size.width * 0.05,
+                  right: MediaQuery.of(context).size.width * 0.05,
+                  child: AnimatedBuilder(
+                    animation: _breathController,
+                    builder: (context, child) {
+                      final isSpeaking = controller.faceState == FaceState.speaking;
+                      // Konuşurken 0.95–1.05 arası nefes, değilse sabit 1.0
+                      final scale = isSpeaking
+                          ? 0.95 + _breathController.value * 0.10
+                          : 1.0;
+                      return Transform.scale(
+                        scale: scale,
+                        child: child,
+                      );
+                    },
+                    child: RealisticEyeWidget(
+                      state: controller.faceState,
+                      mood: controller.currentMood,
+                    ),
                   ),
                 ),
 
@@ -108,13 +132,13 @@ class _FaceScreenState extends State<FaceScreen> {
   double _getMoodGlowIntensity(FaceState state) {
     switch (state) {
       case FaceState.speaking:
-        return 0.08;
+        return 0.35; // konuşurken belirgin ambiyans
       case FaceState.listening:
-        return 0.05;
+        return 0.12;
       case FaceState.thinking:
-        return 0.04;
+        return 0.18;
       case FaceState.idle:
-        return 0.02;
+        return 0.05;
     }
   }
 
