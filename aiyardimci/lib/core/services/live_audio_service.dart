@@ -42,6 +42,7 @@ class LiveAudioService {
   bool _active = false;
   bool _ready = false;
   bool _speaking = false; // model konuşuyor mu — mikrofonu susturmak için
+  bool _reconnecting = false; // reconnect yarış durumu koruması
   String? _liveModel;
   bool _playerOpen = false;
 
@@ -79,6 +80,7 @@ class LiveAudioService {
   Future<void> start() async {
     if (_active) return;
     _active = true;
+    _reconnecting = false;
 
     // Player'ı aç (bir kez)
     if (!_playerOpen) {
@@ -92,6 +94,7 @@ class LiveAudioService {
   Future<void> stop() async {
     _active = false;
     _ready = false;
+    _reconnecting = false;
     onConnectionStateChange?.call(LiveConnectionState.disconnected);
     await _stopMic();
     await _closeWs();
@@ -102,8 +105,8 @@ class LiveAudioService {
     await _player.stopPlayer();
   }
 
-  void dispose() {
-    stop();
+  Future<void> dispose() async {
+    await stop();
     if (_playerOpen) {
       _player.closePlayer();
       _playerOpen = false;
@@ -245,6 +248,7 @@ class LiveAudioService {
       debugPrint('[LIVE] interrupted');
       _speaking = false;
       _player.stopPlayer().then((_) {
+        if (!_active || !_ready) return;
         _player.startPlayerFromStream(
           codec: Codec.pcm16,
           sampleRate: 24000,
@@ -302,7 +306,7 @@ class LiveAudioService {
           '(total=${totalAudioSec.toStringAsFixed(1)}s, elapsed=${elapsedSec.toStringAsFixed(1)}s)');
 
       Future.delayed(Duration(milliseconds: (remainingEst * 1000).toInt()), () {
-        if (!_active) return;
+        if (!_active || !_ready) return;
         _speaking = false;
         _pendingAudioBytes = 0;
         _firstAudioChunkTime = null;
@@ -357,7 +361,9 @@ class LiveAudioService {
     _micSub = null;
     try {
       if (await _mic.isRecording()) await _mic.stop();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[LIVE] mikrofon kapatma hatası: $e');
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -479,7 +485,8 @@ class LiveAudioService {
   }
 
   Future<void> _reconnect() async {
-    if (!_active) return;
+    if (!_active || _reconnecting) return;
+    _reconnecting = true;
     _ready = false;
     onConnectionStateChange?.call(LiveConnectionState.reconnecting);
     await _stopMic();
@@ -487,6 +494,7 @@ class LiveAudioService {
     await _closeWs();
     debugPrint('[LIVE] 3s sonra yeniden bağlanıyor...');
     await Future.delayed(const Duration(seconds: 3));
+    _reconnecting = false;
     if (_active) await _connectLoop();
   }
 }

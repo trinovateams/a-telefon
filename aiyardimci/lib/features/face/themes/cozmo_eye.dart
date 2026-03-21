@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/enums/face_state.dart';
 import '../../../core/enums/idle_behavior.dart';
-import 'realistic_eye_painter.dart';
+import 'cozmo_eye_painter.dart';
 
-class RealisticEyeWidget extends StatefulWidget {
+class CozmoEyeWidget extends StatefulWidget {
   final FaceState state;
   final String mood;
   final IdleBehavior idleBehavior;
 
-  const RealisticEyeWidget({
+  const CozmoEyeWidget({
     super.key,
     required this.state,
     required this.mood,
@@ -18,10 +18,10 @@ class RealisticEyeWidget extends StatefulWidget {
   });
 
   @override
-  State<RealisticEyeWidget> createState() => _RealisticEyeWidgetState();
+  State<CozmoEyeWidget> createState() => _CozmoEyeWidgetState();
 }
 
-class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
+class _CozmoEyeWidgetState extends State<CozmoEyeWidget>
     with TickerProviderStateMixin {
 
   late AnimationController _pupilController;
@@ -38,12 +38,6 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
   late Animation<double> _blinkAnim;
   late Animation<double> _squashAnim;
 
-  // Prosedürel veriler (sabit seed — sol/sağ göz farklı)
-  late final List<IrisFiber> _leftFibers;
-  late final List<Crypt> _leftCrypts;
-  late final List<IrisFiber> _rightFibers;
-  late final List<Crypt> _rightCrypts;
-
   double _targetPupilScale = 1.0;
   Offset _targetGaze = Offset.zero;
   Offset _microJitter = Offset.zero;
@@ -52,18 +46,10 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
   @override
   void initState() {
     super.initState();
-    _initData();
     _initControllers();
     _startSaccadeLoop();
     _startMicroSaccadeLoop();
     _startBlinkLoop();
-  }
-
-  void _initData() {
-    _leftFibers = RealisticEyePainter.generateIrisFibers(Random(42));
-    _leftCrypts = RealisticEyePainter.generateCrypts(Random(42));
-    _rightFibers = RealisticEyePainter.generateIrisFibers(Random(137));
-    _rightCrypts = RealisticEyePainter.generateCrypts(Random(137));
   }
 
   void _initControllers() {
@@ -102,14 +88,12 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
       duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
 
-    // Blink controller
     _blinkController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
     _blinkAnim = Tween(begin: 0.0, end: 0.0).animate(_blinkController);
 
-    // Squash controller (for smooth idle behavior transitions)
     _squashController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -122,10 +106,9 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
   // ─── Blink ───────────────────────────────────────────────────────────────
 
   void _startBlinkLoop() {
-    final delay = 3000 + Random().nextInt(4000); // 3-7 seconds
+    final delay = 3000 + Random().nextInt(4000);
     Future.delayed(Duration(milliseconds: delay), () {
       if (!mounted) return;
-      // Don't blink while sleeping (eyes already closed) or during speaking
       if (widget.idleBehavior != IdleBehavior.sleeping &&
           widget.state != FaceState.speaking) {
         _doBlink();
@@ -169,7 +152,7 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
     switch (widget.state) {
       case FaceState.idle:
         if (widget.idleBehavior == IdleBehavior.sleeping) {
-          newTarget = Offset.zero; // No movement when sleeping
+          newTarget = Offset.zero;
         } else if (widget.idleBehavior == IdleBehavior.curious) {
           newTarget = Offset(
               (rng.nextDouble() - 0.5) * 0.7, (rng.nextDouble() - 0.5) * 0.5);
@@ -198,7 +181,6 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
   void _startMicroSaccadeLoop() {
     Future.delayed(Duration(milliseconds: 400 + Random().nextInt(1200)), () {
       if (!mounted) return;
-      // Reduce jitter when sleeping
       final jitterAmount = widget.idleBehavior == IdleBehavior.sleeping
           ? 0.005
           : 0.018;
@@ -212,10 +194,10 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
     });
   }
 
-  // ─── State / Mood / IdleBehavior değişimleri ────────────────────────────
+  // ─── State / Mood / IdleBehavior changes ──────────────────────────────
 
   @override
-  void didUpdateWidget(RealisticEyeWidget old) {
+  void didUpdateWidget(CozmoEyeWidget old) {
     super.didUpdateWidget(old);
 
     if (old.mood != widget.mood) {
@@ -267,7 +249,6 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
         newSquash = 0.15;
         break;
       case IdleBehavior.curious:
-        // Slightly wider eyes (negative won't work, keep 0)
         newSquash = 0.0;
         break;
       case IdleBehavior.normal:
@@ -280,7 +261,6 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
     _baseSquash = newSquash;
     _squashController.forward(from: 0);
 
-    // Curious = bigger pupils
     if (widget.idleBehavior == IdleBehavior.curious) {
       _pupilAnim = Tween(begin: _targetPupilScale, end: 1.15).animate(
         CurvedAnimation(parent: _pupilController, curve: Curves.easeOut),
@@ -305,8 +285,6 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
         _squashController,
       ]),
       builder: (context, _) {
-        final shimmerAngle = _shimmerController.value * 2 * pi;
-        final wetness = 0.65 + sin(_shimmerController.value * 2 * pi) * 0.35;
         final gaze = _saccadeAnim.value + _microJitter;
         final irisColor = _irisColorAnim.value ?? MoodColors.getColor(widget.mood);
         final glowPulse = _glowController.value;
@@ -319,7 +297,6 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
         }
         final pupilScale = _pupilAnim.value + extraOsc;
 
-        // Combine blink and idle squash
         final blinkSquash = _blinkAnim.value;
         final idleSquash = _squashAnim.value;
         final finalSquash = (blinkSquash + idleSquash).clamp(0.0, 1.0);
@@ -327,40 +304,32 @@ class _RealisticEyeWidgetState extends State<RealisticEyeWidget>
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Sol göz (anisocoria: %2 büyük)
+            // Left eye (anisocoria: 2% bigger)
             Expanded(
               child: RepaintBoundary(
                 child: CustomPaint(
                   size: Size.infinite,
-                  painter: RealisticEyePainter(
+                  painter: CozmoEyePainter(
                     pupilScale: pupilScale * 1.02,
                     gazeOffset: gaze,
                     irisColor: irisColor,
-                    shimmerAngle: shimmerAngle,
-                    wetness: wetness,
                     glowPulse: glowPulse,
-                    irisFibers: _leftFibers,
-                    irisCrypts: _leftCrypts,
                     squash: finalSquash,
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 48),
-            // Sağ göz
+            // Right eye
             Expanded(
               child: RepaintBoundary(
                 child: CustomPaint(
                   size: Size.infinite,
-                  painter: RealisticEyePainter(
+                  painter: CozmoEyePainter(
                     pupilScale: pupilScale,
                     gazeOffset: gaze,
                     irisColor: irisColor,
-                    shimmerAngle: shimmerAngle,
-                    wetness: wetness,
                     glowPulse: glowPulse,
-                    irisFibers: _rightFibers,
-                    irisCrypts: _rightCrypts,
                     squash: finalSquash,
                   ),
                 ),

@@ -25,6 +25,7 @@ class BrainService {
 
   // Timer
   Timer? _timer;
+  bool _stopped = true;
   IdleBehavior _idleBehavior = IdleBehavior.normal;
 
   // Callbacks
@@ -53,6 +54,7 @@ class BrainService {
   // --- Lifecycle ---
 
   void start() {
+    _stopped = false;
     _sessionStart = DateTime.now();
     _applyTimeOfDayEnergy();
     _checkWelcomeBack();
@@ -61,6 +63,7 @@ class BrainService {
   }
 
   void stop() {
+    _stopped = true;
     _timer?.cancel();
     _timer = null;
     _saveState();
@@ -263,7 +266,9 @@ class BrainService {
 
     if (lastTs == 0) {
       if (_canTrigger('first_meet')) {
-        Future.delayed(const Duration(seconds: 5), () => _speak('first_meet'));
+        Future.delayed(const Duration(seconds: 5), () {
+          if (!_stopped) _speak('first_meet');
+        });
       }
       return;
     }
@@ -271,7 +276,9 @@ class BrainService {
     final lastSession = DateTime.fromMillisecondsSinceEpoch(lastTs);
     final gap = DateTime.now().difference(lastSession);
     if (gap.inHours > 6 && _canTrigger('welcome_back')) {
-      Future.delayed(const Duration(seconds: 5), () => _speak('welcome_back'));
+      Future.delayed(const Duration(seconds: 5), () {
+        if (!_stopped) _speak('welcome_back');
+      });
     }
   }
 

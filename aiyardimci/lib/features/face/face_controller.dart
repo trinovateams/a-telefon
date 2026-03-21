@@ -16,6 +16,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   String _systemPrompt = '';
   String _wakeName = 'Alexia';
   bool _isActive = false;
+  bool _disposed = false;
 
   // Brain state
   IdleBehavior _idleBehavior = IdleBehavior.normal;
@@ -35,6 +36,10 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
   }
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   void _init() {
     _systemPrompt = _storageService.getSystemPrompt();
     _wakeName = _storageService.getWakeName();
@@ -49,45 +54,54 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
 
     // Live service callbacks
     _liveService.onListening = () {
+      if (_disposed) return;
       _faceState = FaceState.listening;
       _brainService.onTurnEnd();
-      notifyListeners();
+      _safeNotify();
     };
     _liveService.onThinking = () {
+      if (_disposed) return;
       _faceState = FaceState.thinking;
-      notifyListeners();
+      _safeNotify();
     };
     _liveService.onSpeaking = () {
+      if (_disposed) return;
       _faceState = FaceState.speaking;
       _brainService.onInteraction();
-      notifyListeners();
+      _safeNotify();
     };
     _liveService.onIdle = () {
+      if (_disposed) return;
       _faceState = FaceState.idle;
-      notifyListeners();
+      _safeNotify();
     };
     _liveService.onMoodChange = (mood) {
+      if (_disposed) return;
       _currentMood = mood;
-      notifyListeners();
+      _safeNotify();
     };
     _liveService.onTextOutput = (text) {
+      if (_disposed) return;
       _brainService.onTextReceived(text);
     };
     _liveService.onConnectionStateChange = (state) {
+      if (_disposed) return;
       _connectionState = state;
-      notifyListeners();
+      _safeNotify();
     };
 
     // Brain callbacks
     _brainService.onIdleBehaviorChange = (behavior) {
+      if (_disposed) return;
       _idleBehavior = behavior;
-      notifyListeners();
+      _safeNotify();
     };
     _brainService.onStateChange = (energy, boredom, affection) {
+      if (_disposed) return;
       _energy = energy;
       _boredom = boredom;
       _affection = affection;
-      notifyListeners();
+      _safeNotify();
     };
   }
 
@@ -129,10 +143,9 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> activate() async {
     _isActive = true;
-    notifyListeners();
+    _safeNotify();
     final hasPermission = await _liveService.init();
     if (hasPermission) {
-      // Inject memories before connecting
       final memoryPrompt = _brainService.getMemoryPrompt();
       _liveService.updateMemoryPrompt(memoryPrompt);
       await _liveService.start();
@@ -146,7 +159,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _brainService.stop();
     await _liveService.stop();
     _faceState = FaceState.idle;
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> sendTextMessage(String message) async {
@@ -158,7 +171,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> stopSpeaking() async {
     await _liveService.stopSpeaking();
     _faceState = FaceState.listening;
-    notifyListeners();
+    _safeNotify();
   }
 
   void boostEnergy() {
@@ -175,7 +188,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
       await _liveService.stop();
       await _liveService.start();
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> updateApiKey(String key) async {
@@ -185,7 +198,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
       await _liveService.stop();
       await _liveService.start();
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> updateWakeName(String name) async {
@@ -196,7 +209,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
       await _liveService.stop();
       await _liveService.start();
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> updateVoiceGender(String gender) async {
@@ -206,7 +219,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
       await _liveService.stop();
       await _liveService.start();
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   void resetChat() {
@@ -215,14 +228,26 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     }
     _currentMood = 'calm';
     _faceState = FaceState.idle;
-    notifyListeners();
+    _safeNotify();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
+
+    // Clear all callbacks to prevent post-dispose calls
+    _liveService.onListening = null;
+    _liveService.onThinking = null;
+    _liveService.onSpeaking = null;
+    _liveService.onIdle = null;
+    _liveService.onMoodChange = null;
+    _liveService.onTextOutput = null;
+    _liveService.onConnectionStateChange = null;
+    _brainService.onIdleBehaviorChange = null;
+    _brainService.onStateChange = null;
+
     _brainService.dispose();
-    _liveService.stop();
     _liveService.dispose();
     super.dispose();
   }

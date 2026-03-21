@@ -5,7 +5,7 @@ import '../../core/enums/face_state.dart';
 import '../../core/enums/idle_behavior.dart';
 import '../../core/enums/connection_state.dart';
 import 'face_controller.dart';
-import 'themes/realistic_eye.dart';
+import 'themes/cozmo_eye.dart';
 import '../settings/settings_screen.dart';
 
 class FaceScreen extends StatefulWidget {
@@ -103,7 +103,7 @@ class _FaceScreenState extends State<FaceScreen>
                         child: child,
                       );
                     },
-                    child: RealisticEyeWidget(
+                    child: CozmoEyeWidget(
                       state: controller.faceState,
                       mood: controller.currentMood,
                       idleBehavior: controller.idleBehavior,
