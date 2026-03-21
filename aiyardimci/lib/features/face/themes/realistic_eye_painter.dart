@@ -35,6 +35,7 @@ class RealisticEyePainter extends CustomPainter {
   final double glowPulse;      // 0..1 dış ışıma nabzı
   final List<IrisFiber> irisFibers;
   final List<Crypt> irisCrypts;
+  final double squash; // 0.0 = fully open, 1.0 = fully closed
 
   const RealisticEyePainter({
     required this.pupilScale,
@@ -45,6 +46,7 @@ class RealisticEyePainter extends CustomPainter {
     required this.glowPulse,
     required this.irisFibers,
     required this.irisCrypts,
+    this.squash = 0.0,
   });
 
   @override
@@ -54,11 +56,21 @@ class RealisticEyePainter extends CustomPainter {
         old.irisColor != irisColor ||
         old.shimmerAngle != shimmerAngle ||
         old.wetness != wetness ||
-        old.glowPulse != glowPulse;
+        old.glowPulse != glowPulse ||
+        old.squash != squash;
   }
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Squash transform — Cozmo-style eye closing (center-relative)
+    if (squash > 0.001) {
+      final centerY = size.height / 2;
+      canvas.save();
+      canvas.translate(0, centerY);
+      canvas.scale(1.0, (1.0 - squash).clamp(0.0, 1.0));
+      canvas.translate(0, -centerY);
+    }
+
     final center = Offset(size.width / 2, size.height / 2);
     final irisRadius = size.width * 0.45;
 
@@ -74,6 +86,10 @@ class RealisticEyePainter extends CustomPainter {
     _drawLimbalRing(canvas, irisCenter, irisRadius);
     _drawPupil(canvas, irisCenter, irisRadius);
     _drawReflections(canvas, irisCenter, irisRadius);
+
+    if (squash > 0.001) {
+      canvas.restore();
+    }
   }
 
   void _drawOuterGlow(Canvas canvas, Offset center, double r) {
