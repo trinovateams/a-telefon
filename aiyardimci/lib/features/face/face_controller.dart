@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../core/enums/face_state.dart';
+import '../../core/enums/idle_behavior.dart';
+import '../../core/enums/connection_state.dart';
 import '../../core/services/live_audio_service.dart';
+import '../../core/services/brain_service.dart';
 import '../../core/services/storage_service.dart';
 
 class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   final LiveAudioService _liveService;
+  final BrainService _brainService;
   final StorageService _storageService;
 
   FaceState _faceState = FaceState.idle;
@@ -13,10 +17,19 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   String _wakeName = 'Alexia';
   bool _isActive = false;
 
+  // Brain state
+  IdleBehavior _idleBehavior = IdleBehavior.normal;
+  LiveConnectionState _connectionState = LiveConnectionState.disconnected;
+  double _energy = 0.8;
+  double _boredom = 0.0;
+  double _affection = 0.3;
+
   FaceController({
     required LiveAudioService liveService,
+    required BrainService brainService,
     required StorageService storageService,
   })  : _liveService = liveService,
+        _brainService = brainService,
         _storageService = storageService {
     _init();
     WidgetsBinding.instance.addObserver(this);
@@ -34,8 +47,10 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _liveService.updateVoice(voiceGender);
     _liveService.updateWakeName(_wakeName);
 
+    // Live service callbacks
     _liveService.onListening = () {
       _faceState = FaceState.listening;
+      _brainService.onTurnEnd();
       notifyListeners();
     };
     _liveService.onThinking = () {
@@ -44,6 +59,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     };
     _liveService.onSpeaking = () {
       _faceState = FaceState.speaking;
+      _brainService.onInteraction();
       notifyListeners();
     };
     _liveService.onIdle = () {
@@ -52,6 +68,25 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     };
     _liveService.onMoodChange = (mood) {
       _currentMood = mood;
+      notifyListeners();
+    };
+    _liveService.onTextOutput = (text) {
+      _brainService.onTextReceived(text);
+    };
+    _liveService.onConnectionStateChange = (state) {
+      _connectionState = state;
+      notifyListeners();
+    };
+
+    // Brain callbacks
+    _brainService.onIdleBehaviorChange = (behavior) {
+      _idleBehavior = behavior;
+      notifyListeners();
+    };
+    _brainService.onStateChange = (energy, boredom, affection) {
+      _energy = energy;
+      _boredom = boredom;
+      _affection = affection;
       notifyListeners();
     };
   }
@@ -63,8 +98,10 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     debugPrint('[APP] lifecycle: $state');
     if (state == AppLifecycleState.resumed && _isActive) {
       _liveService.start();
+      _brainService.start();
     } else if (state == AppLifecycleState.paused) {
       _liveService.stop();
+      _brainService.stop();
     }
   }
 
@@ -79,6 +116,14 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   bool get isActive => _isActive;
   String get apiKey => _storageService.getApiKey();
   String get voiceGender => _storageService.getVoiceGender();
+  StorageService get storageService => _storageService;
+
+  // Brain getters
+  IdleBehavior get idleBehavior => _idleBehavior;
+  LiveConnectionState get connectionState => _connectionState;
+  double get energy => _energy;
+  double get boredom => _boredom;
+  double get affection => _affection;
 
   // === PUBLIC ===============================================================
 
@@ -87,13 +132,18 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
     final hasPermission = await _liveService.init();
     if (hasPermission) {
+      // Inject memories before connecting
+      final memoryPrompt = _brainService.getMemoryPrompt();
+      _liveService.updateMemoryPrompt(memoryPrompt);
       await _liveService.start();
+      _brainService.start();
     }
-    debugPrint('[FLOW] activated - live audio');
+    debugPrint('[FLOW] activated - live audio + brain');
   }
 
   Future<void> deactivate() async {
     _isActive = false;
+    _brainService.stop();
     await _liveService.stop();
     _faceState = FaceState.idle;
     notifyListeners();
@@ -101,6 +151,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> sendTextMessage(String message) async {
     if (message.trim().isEmpty) return;
+    _brainService.onUserTextSent(message);
     await _liveService.sendText(message);
   }
 
@@ -110,13 +161,16 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  void boostEnergy() {
+    _brainService.boost();
+  }
+
   // === AYARLAR ==============================================================
 
   Future<void> updateSystemPrompt(String prompt) async {
     _systemPrompt = prompt;
     await _storageService.setSystemPrompt(prompt);
     _liveService.updateSystemPrompt(prompt);
-    // Yeni prompt için yeniden bağlan
     if (_isActive) {
       await _liveService.stop();
       await _liveService.start();
@@ -156,7 +210,6 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void resetChat() {
-    // Live API stateless per session — yeniden bağlan
     if (_isActive) {
       _liveService.stop().then((_) => _liveService.start());
     }
@@ -168,6 +221,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _brainService.dispose();
     _liveService.stop();
     _liveService.dispose();
     super.dispose();
