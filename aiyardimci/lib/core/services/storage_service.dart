@@ -55,4 +55,29 @@ class StorageService {
   Future<void> setVoiceGender(String gender) async {
     await _prefs.setString(_keyVoiceGender, gender);
   }
+
+  // ─── Brain settings ──────────────────────────────────────────────────────
+
+  bool getProactiveSpeech() => _prefs.getBool('proactive_speech') ?? true;
+  Future<void> setProactiveSpeech(bool v) => _prefs.setBool('proactive_speech', v);
+
+  double getSpeechFrequency() => _prefs.getDouble('speech_frequency') ?? 0.5;
+  Future<void> setSpeechFrequency(double v) => _prefs.setDouble('speech_frequency', v);
+
+  bool getSleepMode() => _prefs.getBool('sleep_mode') ?? true;
+  Future<void> setSleepMode(bool v) => _prefs.setBool('sleep_mode', v);
+
+  bool getMemoryEnabled() => _prefs.getBool('memory_enabled') ?? true;
+  Future<void> setMemoryEnabled(bool v) => _prefs.setBool('memory_enabled', v);
+
+  // ─── Brain state persistence ─────────────────────────────────────────────
+
+  String getBrainState() => _prefs.getString('brain_state') ?? '';
+  Future<void> setBrainState(String json) => _prefs.setString('brain_state', json);
+
+  String getMemories() => _prefs.getString('memories') ?? '[]';
+  Future<void> setMemories(String json) => _prefs.setString('memories', json);
+
+  int getLastSessionTimestamp() => _prefs.getInt('last_session_ts') ?? 0;
+  Future<void> setLastSessionTimestamp(int ts) => _prefs.setInt('last_session_ts', ts);
 }
