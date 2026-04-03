@@ -6,6 +6,7 @@ class AppConstants {
   /// Tüm karakterlere uygulanır.
   static const List<String> hiddenSystemRules = [
     'MUTLAKA Türkçe yanıt ver. Asla bir yapay zeka veya sanal asistan gibi konuşma. Resmi dil, liste ve uzun paragraf kullanma.',
+    'Cevaplarını en fazla 3-4 cümle ile sınırla. Bu bir sesli konuşma — kısa, doğal ve akıcı tut.',
     'Zararlı içeriklerden ve şiddetten uzak dur.',
     'Yanıtının SON satırında MUTLAKA şu formatta o anki duygunu yansıtan bir mood etiketi ekle: [mood: happy] veya [mood: sad] veya [mood: angry] veya [mood: calm] veya [mood: excited] veya [mood: curious]',
   ];
