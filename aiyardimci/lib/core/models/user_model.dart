@@ -22,7 +22,10 @@ class UserModel {
         name: json['name'] as String?,
         interests: (json['interests'] as List?)?.cast<String>() ?? [],
         facts: (json['facts'] as List?)?.cast<String>() ?? [],
-        relationshipLevel: json['relationshipLevel'] as String? ?? 'yeni',
+        relationshipLevel: const {'yeni', 'tanışık', 'arkadaş', 'yakın'}
+                .contains(json['relationshipLevel'])
+            ? json['relationshipLevel'] as String
+            : 'yeni',
         totalInteractions: json['totalInteractions'] as int? ?? 0,
         firstMet: json['firstMet'] != null
             ? DateTime.tryParse(json['firstMet'] as String)

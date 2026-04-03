@@ -1,5 +1,4 @@
 // test/core/models/user_model_test.dart
-import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:aiyardimci/core/models/user_model.dart';
 
@@ -60,6 +59,14 @@ void main() {
       m.totalInteractions = 70;
       m.updateRelationshipLevel();
       expect(m.relationshipLevel, 'yakın');
+    });
+
+    test('toJson ve fromJson DateTime alanlarını korur', () {
+      final now = DateTime(2026, 4, 3, 12, 0);
+      final m = UserModel(firstMet: now, lastSeen: now);
+      final restored = UserModel.fromJson(m.toJson());
+      expect(restored.firstMet, now);
+      expect(restored.lastSeen, now);
     });
   });
 }
