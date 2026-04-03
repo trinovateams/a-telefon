@@ -30,8 +30,9 @@ class LiveAudioService {
   String _apiKey = AppConstants.geminiApiKey;
   String _systemPrompt = AppConstants.defaultSystemPrompt;
   String _voiceName = 'Aoede';
-  String _wakeName = 'Alexia';
+  String _wakeName = 'Cozmo';
   String _memoryPrompt = '';
+  String _thoughtInjection = '';
 
   // ─── Durum ─────────────────────────────────────────────────────────────────
 
@@ -68,10 +69,18 @@ class LiveAudioService {
   }
 
   void updateSystemPrompt(String p) => _systemPrompt = p;
-  void updateVoice(String g) =>
-      _voiceName = g == 'male' ? 'Charon' : 'Aoede';
+  void updateVoice(String g) {
+    if (g == 'male') {
+      _voiceName = 'Charon';
+    } else if (g == 'cozmo') {
+      _voiceName = 'Puck';
+    } else {
+      _voiceName = 'Aoede';
+    }
+  }
   void updateWakeName(String n) => _wakeName = n;
   void updateMemoryPrompt(String p) => _memoryPrompt = p;
+  void setThoughtInjection(String thought) => _thoughtInjection = thought;
 
   // ─── Yaşam döngüsü ────────────────────────────────────────────────────────
 
@@ -429,8 +438,8 @@ class LiveAudioService {
   Map<String, dynamic> _buildSetup() {
     final wake = _wakeName.trim().isEmpty
         ? ''
-        : 'ÖNEMLİ: Senin adın "$_wakeName". Kullanıcı sana "$_wakeName" diye seslenir. '
-            'Sadece kullanıcı "$_wakeName" dediğinde cevap ver. '
+        : 'ÖNEMLİ: Senin adın "$_wakeName" (Kullanıcı sana Kozmo, Kosmos, Cosmos veya Cozma derse de seni kastediyordur). '
+            'Sadece kullanıcı sana adınla seslendiğinde cevap ver. '
             'Kullanıcıya "$_wakeName" diye hitap ETME, "$_wakeName" senin kendi adın. '
             'Kullanıcı "$_wakeName" demeden konuşursa sessiz kal.';
 
@@ -447,7 +456,13 @@ class LiveAudioService {
         },
         'systemInstruction': {
           'parts': [
-            {'text': '$_systemPrompt\n\n$wake${_memoryPrompt.isNotEmpty ? '\n\n$_memoryPrompt' : ''}'}
+            {
+              'text': '${AppConstants.hiddenSystemRules.join('\n')}\n\n'
+                  '$_systemPrompt\n\n'
+                  '$wake'
+                  '${_thoughtInjection.isNotEmpty ? AppConstants.thoughtInjectionTemplate.replaceAll('{thought}', _thoughtInjection) : ''}'
+                  '${_memoryPrompt.isNotEmpty ? '\n\n$_memoryPrompt' : ''}'
+            }
           ],
         },
       }
