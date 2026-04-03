@@ -36,6 +36,8 @@ class InnerThought {
   /// JSON bulunamazsa null döner.
   static InnerThought? fromRawJson(String raw) {
     try {
+      // Greedy match — works for Gemini's flat JSON responses.
+      // Will capture outermost braces if response contains nested JSON.
       final match = RegExp(r'\{[\s\S]*\}').firstMatch(raw);
       if (match == null) return null;
       final decoded = jsonDecode(match.group(0)!) as Map<String, dynamic>;
