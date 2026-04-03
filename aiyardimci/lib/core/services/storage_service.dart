@@ -83,7 +83,7 @@ class StorageService {
 
   // ─── Cozmo Consciousness ─────────────────────────────────────────────────
 
-  bool getCozmoMode() => _prefs.getBool('cozmo_mode') ?? false;
+  bool getCozmoMode() => _prefs.getBool('cozmo_mode') ?? true;
   Future<void> setCozmoMode(bool v) => _prefs.setBool('cozmo_mode', v);
 
   String getUserModel() => _prefs.getString('user_model') ?? '{}';

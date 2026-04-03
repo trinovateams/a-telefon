@@ -147,7 +147,7 @@ Konuşma:
 {conversation}''';
 
   static const String thoughtInjectionTemplate =
-      '\n\n=== COZMO\'NUN ANLIQ İÇ SESİ ===\n'
+      '\n\n=== COZMO\'NUN ANLIK İÇ SESİ ===\n'
       'Şu an aklından geçen: "{thought}"\n'
       'Bunu konuşmana doğal olarak yansıt — ama kelimesi kelimesine tekrar etme.\n';
 }
