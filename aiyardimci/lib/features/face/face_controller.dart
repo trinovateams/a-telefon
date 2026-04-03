@@ -97,6 +97,12 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
       _brainService.onTextReceived(text);
       _ccs?.onTextReceived(text);
     };
+    _liveService.onUserTranscript = (text) {
+      if (_disposed) return;
+      // Feed user's spoken words into brain + CCS for memory and name extraction
+      _brainService.onUserTextSent(text);
+      _ccs?.onUserTextSent(text);
+    };
     _liveService.onConnectionStateChange = (state) {
       if (_disposed) return;
       _connectionState = state;
@@ -288,6 +294,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _liveService.onIdle = null;
     _liveService.onMoodChange = null;
     _liveService.onTextOutput = null;
+    _liveService.onUserTranscript = null;
     _liveService.onConnectionStateChange = null;
     _brainService.onIdleBehaviorChange = null;
     _brainService.onStateChange = null;

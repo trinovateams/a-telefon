@@ -60,6 +60,7 @@ class LiveAudioService {
   Function()? onIdle;
   Function(String mood)? onMoodChange;
   Function(String text)? onTextOutput;
+  Function(String text)? onUserTranscript;
   Function(LiveConnectionState state)? onConnectionStateChange;
 
   // ─── Ayar güncellemeleri ───────────────────────────────────────────────────
@@ -256,6 +257,17 @@ class LiveAudioService {
   void _onMessage(Map<String, dynamic> data) {
     final sc = data['serverContent'] as Map<String, dynamic>?;
     if (sc == null) return;
+
+    // Kullanıcının sesli konuşmasının transkripsiyonu
+    final inputTranscript = sc['inputTranscript'] as Map<String, dynamic>?;
+    if (inputTranscript != null) {
+      final text = inputTranscript['text'] as String?;
+      if (text != null && text.trim().isNotEmpty) {
+        debugPrint('[LIVE] kullanıcı: $text');
+        onUserTranscript?.call(text.trim());
+      }
+      return;
+    }
 
     // Kullanıcı konuştu → model kesildi
     if (sc['interrupted'] == true) {
@@ -457,6 +469,7 @@ class LiveAudioService {
         'model': _liveModel,
         'generationConfig': {
           'responseModalities': ['AUDIO'],
+          'inputAudioTranscription': {},
           'speechConfig': {
             'voiceConfig': {
               'prebuiltVoiceConfig': {'voiceName': _voiceName},
