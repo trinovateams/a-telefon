@@ -95,5 +95,21 @@ class MemoryService {
     await _saveMemories();
   }
 
+  /// CCS aktifse BrainService summarize işlemini atlar.
+  bool ccsActive = false;
+
+  /// CCS tarafından doğrudan hafıza kaydetmek için kullanılır.
+  Future<void> storeDirectMemory(String content, String mood) async {
+    await storeSummary(content, mood);
+  }
+
+  /// Özetleme hakkını talep eder. true dönerse caller summarize etmeli.
+  /// Counter sıfırlanır — double-fire olmaz.
+  bool claimSummarization() {
+    if (!shouldSummarize()) return false;
+    _turnCount = 0;
+    return true;
+  }
+
   bool get isEnabled => _storage.getMemoryEnabled();
 }
