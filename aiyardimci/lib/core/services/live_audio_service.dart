@@ -315,18 +315,22 @@ class LiveAudioService {
       final elapsedSec = _firstAudioChunkTime != null
           ? DateTime.now().difference(_firstAudioChunkTime!).inMilliseconds / 1000.0
           : 0.0;
-      final remainingEst = (totalAudioSec - elapsedSec).clamp(0.3, 12.0);
+      final remainingEst = (totalAudioSec - elapsedSec).clamp(1.2, 12.0);
       debugPrint('[LIVE] drain estimate: ${remainingEst.toStringAsFixed(1)}s '
           '(total=${totalAudioSec.toStringAsFixed(1)}s, elapsed=${elapsedSec.toStringAsFixed(1)}s)');
 
       Future.delayed(Duration(milliseconds: (remainingEst * 1000).toInt()), () {
         if (!_active || !_ready) return;
-        _speaking = false;
         _pendingAudioBytes = 0;
         _firstAudioChunkTime = null;
-
-        debugPrint('[LIVE] mic açıldı');
-        onListening?.call();
+        // Brief grace period before enabling mic — prevents echo/ambient noise
+        // from triggering an immediate interrupt right as audio finishes
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (!_active || !_ready) return;
+          _speaking = false;
+          debugPrint('[LIVE] mic açıldı');
+          onListening?.call();
+        });
       });
     }
   }

@@ -13,6 +13,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   final LiveAudioService _liveService;
   final BrainService _brainService;
   final StorageService _storageService;
+  final UserModelService _userModelService;
   CozmoConsciousnessService? _ccs;
 
   FaceState _faceState = FaceState.idle;
@@ -33,11 +34,12 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     required LiveAudioService liveService,
     required BrainService brainService,
     required StorageService storageService,
-    required UserModelService userModelService, // kept for API compatibility
+    required UserModelService userModelService,
     required CozmoConsciousnessService ccs,
   })  : _liveService = liveService,
         _brainService = brainService,
         _storageService = storageService,
+        _userModelService = userModelService,
         _ccs = ccs {
     _init();
     WidgetsBinding.instance.addObserver(this);
@@ -150,8 +152,16 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
 
   // === PUBLIC ===============================================================
 
-  /// Updates thought injection before each Live API start.
+  /// Updates memory + user context + thought injection before each Live API start.
   Future<void> _startLive() async {
+    // Always refresh memory prompt so reconnects have latest memories + user info
+    final memoryPrompt = _brainService.getMemoryPrompt();
+    final userSummary = _userModelService.model.toPromptSummary();
+    final combined = [
+      if (memoryPrompt.isNotEmpty) memoryPrompt,
+      if (userSummary.isNotEmpty) userSummary,
+    ].join('\n\n');
+    _liveService.updateMemoryPrompt(combined);
     _liveService.setThoughtInjection(_ccs?.getThoughtInjection() ?? '');
     await _liveService.start();
   }
@@ -162,8 +172,6 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     final hasPermission = await _liveService.init();
     if (hasPermission) {
       final isCozmo = _storageService.getCozmoMode();
-      final memoryPrompt = _brainService.getMemoryPrompt();
-      _liveService.updateMemoryPrompt(memoryPrompt);
       _liveService.updateCozmoMode(isCozmo);
       if (isCozmo) _ccs?.start();
       await _startLive();
