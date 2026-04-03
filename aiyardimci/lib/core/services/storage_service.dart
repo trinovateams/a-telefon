@@ -40,16 +40,16 @@ class StorageService {
   }
 
   String getWakeName() {
-    return _prefs.getString(_keyWakeName) ?? 'Alexia';
+    return _prefs.getString(_keyWakeName) ?? 'Cozmo';
   }
 
   Future<void> setWakeName(String name) async {
     await _prefs.setString(_keyWakeName, name);
   }
 
-  /// 'female' veya 'male'
+  /// 'female', 'male' veya 'cozmo'
   String getVoiceGender() {
-    return _prefs.getString(_keyVoiceGender) ?? 'female';
+    return _prefs.getString(_keyVoiceGender) ?? 'cozmo';
   }
 
   Future<void> setVoiceGender(String gender) async {
@@ -80,4 +80,13 @@ class StorageService {
 
   int getLastSessionTimestamp() => _prefs.getInt('last_session_ts') ?? 0;
   Future<void> setLastSessionTimestamp(int ts) => _prefs.setInt('last_session_ts', ts);
+
+  // ─── Cozmo Consciousness ─────────────────────────────────────────────────
+
+  bool getCozmoMode() => _prefs.getBool('cozmo_mode') ?? false;
+  Future<void> setCozmoMode(bool v) => _prefs.setBool('cozmo_mode', v);
+
+  String getUserModel() => _prefs.getString('user_model') ?? '{}';
+  Future<void> setUserModel(String json) =>
+      _prefs.setString('user_model', json);
 }
