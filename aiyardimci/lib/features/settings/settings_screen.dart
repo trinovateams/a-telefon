@@ -148,19 +148,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: _buildVoiceOption(
             gender: 'female',
             label: 'Kadın',
-            subtitle: 'Aoede · Sıcak & Doğal',
+            subtitle: 'Aoede · Sıcak',
             icon: Icons.face_retouching_natural_rounded,
             selected: current == 'female',
             moodColor: moodColor,
             onTap: () => controller.updateVoiceGender('female'),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildVoiceOption(
+            gender: 'cozmo',
+            label: 'Robot',
+            subtitle: 'Puck · Oyuncu',
+            icon: Icons.smart_toy_rounded,
+            selected: current == 'cozmo',
+            moodColor: moodColor,
+            onTap: () => controller.updateVoiceGender('cozmo'),
+          ),
+        ),
+        const SizedBox(width: 8),
         Expanded(
           child: _buildVoiceOption(
             gender: 'male',
             label: 'Erkek',
-            subtitle: 'Charon · Derin & Net',
+            subtitle: 'Charon · Derin',
             icon: Icons.face_rounded,
             selected: current == 'male',
             moodColor: moodColor,
@@ -241,7 +253,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: const TextStyle(color: Colors.white, fontSize: 15),
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
-              hintText: 'Alexia',
+              hintText: 'Cozmo',
               hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -371,11 +383,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: AppConstants.presetPersonalities.entries.map((entry) {
         final isActive = controller.systemPrompt == entry.value.join(' ');
 
+        final isCozmo = entry.key == 'Cozmo';
         return GestureDetector(
           onTap: () {
             final prompt = entry.value.join(' ');
             _promptController.text = prompt;
-            controller.updateSystemPrompt(prompt);
+            controller.selectPreset(entry.key, prompt);
           },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
@@ -389,12 +402,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: isActive ? moodColor : Colors.white.withValues(alpha: 0.15),
               ),
             ),
-            child: Text(
-              entry.key,
-              style: TextStyle(
-                color: isActive ? moodColor : Colors.white70,
-                fontSize: 13,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  entry.key,
+                  style: TextStyle(
+                    color: isActive ? moodColor : Colors.white70,
+                    fontSize: 13,
+                  ),
+                ),
+                if (isCozmo) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: moodColor.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'BİLİNÇLİ',
+                      style: TextStyle(
+                        color: moodColor,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         );
@@ -465,7 +502,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: const Text('Proaktif Konuşma', style: TextStyle(color: Colors.white, fontSize: 14)),
             subtitle: Text(
-              'Alexia kendi kendine konuşsun',
+              'Cozmo kendi kendine konuşsun',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
             ),
             value: storage.getProactiveSpeech(),
