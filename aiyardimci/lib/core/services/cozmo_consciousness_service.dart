@@ -76,11 +76,6 @@ class CozmoConsciousnessService {
 
   void onUserTextSent(String text) {
     if (text.isNotEmpty) _recentTexts.add('Kullanıcı: $text');
-    _extractionTurnCount++;
-    if (_extractionTurnCount >= _extractionInterval) {
-      _extractionTurnCount = 0;
-      _runUserModelExtraction();
-    }
   }
 
   void onMoodChange(String mood) {
@@ -90,6 +85,12 @@ class CozmoConsciousnessService {
   void onTurnEnd() {
     if (_memoryService.claimSummarization()) {
       _runMemorySummarization();
+    }
+    // Count voice turns for extraction (text turns counted via onUserTextSent)
+    _extractionTurnCount++;
+    if (_extractionTurnCount >= _extractionInterval && _recentTexts.isNotEmpty) {
+      _extractionTurnCount = 0;
+      _runUserModelExtraction();
     }
   }
 

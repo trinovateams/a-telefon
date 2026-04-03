@@ -469,7 +469,6 @@ class LiveAudioService {
         'model': _liveModel,
         'generationConfig': {
           'responseModalities': ['AUDIO'],
-          'inputAudioTranscription': {},
           'speechConfig': {
             'voiceConfig': {
               'prebuiltVoiceConfig': {'voiceName': _voiceName},
