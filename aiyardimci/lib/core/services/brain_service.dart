@@ -86,8 +86,12 @@ class BrainService {
   }
 
   void onTurnEnd() {
-    if (_memoryService.isEnabled && _memoryService.shouldSummarize()) {
-      _triggerMemorySummary();
+    // When CCS is active it claims summarization via claimSummarization().
+    // BrainService only summarizes when CCS is not running.
+    if (_memoryService.isEnabled && !_memoryService.ccsActive) {
+      if (_memoryService.claimSummarization()) {
+        _triggerMemorySummary();
+      }
     }
   }
 
