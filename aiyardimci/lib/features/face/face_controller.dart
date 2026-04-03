@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/enums/face_state.dart';
 import '../../core/enums/idle_behavior.dart';
@@ -5,16 +6,19 @@ import '../../core/enums/connection_state.dart';
 import '../../core/services/live_audio_service.dart';
 import '../../core/services/brain_service.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/services/cozmo_consciousness_service.dart';
+import '../../core/services/user_model_service.dart';
 
 class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   final LiveAudioService _liveService;
   final BrainService _brainService;
   final StorageService _storageService;
+  CozmoConsciousnessService? _ccs;
 
   FaceState _faceState = FaceState.idle;
   String _currentMood = 'calm';
   String _systemPrompt = '';
-  String _wakeName = 'Alexia';
+  String _wakeName = 'Cozmo';
   bool _isActive = false;
   bool _disposed = false;
 
@@ -29,9 +33,12 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     required LiveAudioService liveService,
     required BrainService brainService,
     required StorageService storageService,
+    required UserModelService userModelService, // kept for API compatibility
+    required CozmoConsciousnessService ccs,
   })  : _liveService = liveService,
         _brainService = brainService,
-        _storageService = storageService {
+        _storageService = storageService,
+        _ccs = ccs {
     _init();
     WidgetsBinding.instance.addObserver(this);
   }
@@ -57,6 +64,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
       if (_disposed) return;
       _faceState = FaceState.listening;
       _brainService.onTurnEnd();
+      _ccs?.onTurnEnd();
       _safeNotify();
     };
     _liveService.onThinking = () {
@@ -68,6 +76,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
       if (_disposed) return;
       _faceState = FaceState.speaking;
       _brainService.onInteraction();
+      _ccs?.onInteraction();
       _safeNotify();
     };
     _liveService.onIdle = () {
@@ -78,11 +87,13 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _liveService.onMoodChange = (mood) {
       if (_disposed) return;
       _currentMood = mood;
+      _ccs?.onMoodChange(mood);
       _safeNotify();
     };
     _liveService.onTextOutput = (text) {
       if (_disposed) return;
       _brainService.onTextReceived(text);
+      _ccs?.onTextReceived(text);
     };
     _liveService.onConnectionStateChange = (state) {
       if (_disposed) return;
@@ -111,7 +122,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     debugPrint('[APP] lifecycle: $state');
     if (state == AppLifecycleState.resumed && _isActive) {
-      _liveService.start();
+      _startLive();
       _brainService.start();
     } else if (state == AppLifecycleState.paused) {
       _liveService.stop();
@@ -123,8 +134,6 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
 
   FaceState get faceState => _faceState;
   String get currentMood => _currentMood;
-  String get lastMessage => '';
-  String get lastResponse => '';
   String get systemPrompt => _systemPrompt;
   String get wakeName => _wakeName;
   bool get isActive => _isActive;
@@ -141,21 +150,31 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
 
   // === PUBLIC ===============================================================
 
+  /// Updates thought injection before each Live API start.
+  Future<void> _startLive() async {
+    _liveService.setThoughtInjection(_ccs?.getThoughtInjection() ?? '');
+    await _liveService.start();
+  }
+
   Future<void> activate() async {
     _isActive = true;
     _safeNotify();
     final hasPermission = await _liveService.init();
     if (hasPermission) {
+      final isCozmo = _storageService.getCozmoMode();
       final memoryPrompt = _brainService.getMemoryPrompt();
       _liveService.updateMemoryPrompt(memoryPrompt);
-      await _liveService.start();
+      _liveService.updateCozmoMode(isCozmo);
+      if (isCozmo) _ccs?.start();
+      await _startLive();
       _brainService.start();
     }
-    debugPrint('[FLOW] activated - live audio + brain');
+    debugPrint('[FLOW] activated — live + brain + ${_storageService.getCozmoMode() ? "CCS" : "no CCS"}');
   }
 
   Future<void> deactivate() async {
     _isActive = false;
+    _ccs?.stop();
     _brainService.stop();
     await _liveService.stop();
     _faceState = FaceState.idle;
@@ -165,6 +184,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> sendTextMessage(String message) async {
     if (message.trim().isEmpty) return;
     _brainService.onUserTextSent(message);
+    _ccs?.onUserTextSent(message);
     await _liveService.sendText(message);
   }
 
@@ -186,7 +206,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _liveService.updateSystemPrompt(prompt);
     if (_isActive) {
       await _liveService.stop();
-      await _liveService.start();
+      await _startLive();
     }
     _safeNotify();
   }
@@ -196,7 +216,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _liveService.updateApiKey(key);
     if (_isActive) {
       await _liveService.stop();
-      await _liveService.start();
+      await _startLive();
     }
     _safeNotify();
   }
@@ -207,7 +227,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _liveService.updateWakeName(_wakeName);
     if (_isActive) {
       await _liveService.stop();
-      await _liveService.start();
+      await _startLive();
     }
     _safeNotify();
   }
@@ -217,24 +237,41 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _liveService.updateVoice(gender);
     if (_isActive) {
       await _liveService.stop();
-      await _liveService.start();
+      await _startLive();
     }
     _safeNotify();
   }
 
   void resetChat() {
     if (_isActive) {
-      _liveService.stop().then((_) => _liveService.start());
+      _liveService.stop().then((_) => _startLive());
     }
     _currentMood = 'calm';
     _faceState = FaceState.idle;
     _safeNotify();
   }
 
+  Future<void> selectPreset(String presetName, String prompt) async {
+    final isCozmo = presetName == 'Cozmo';
+    await _storageService.setCozmoMode(isCozmo);
+    _liveService.updateCozmoMode(isCozmo);
+
+    if (isCozmo && _isActive && !(_ccs?.isActive ?? false)) {
+      _ccs?.start();
+    } else if (!isCozmo) {
+      _ccs?.stop();
+    }
+
+    await updateSystemPrompt(prompt);
+  }
+
   @override
   void dispose() {
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
+
+    _ccs?.stop();
+    _ccs = null;
 
     // Clear all callbacks to prevent post-dispose calls
     _liveService.onListening = null;
@@ -248,7 +285,7 @@ class FaceController extends ChangeNotifier with WidgetsBindingObserver {
     _brainService.onStateChange = null;
 
     _brainService.dispose();
-    _liveService.dispose();
+    unawaited(_liveService.dispose());
     super.dispose();
   }
 }

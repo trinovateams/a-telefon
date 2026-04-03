@@ -42,6 +42,10 @@ class _CozmoEyeWidgetState extends State<CozmoEyeWidget>
   Offset _targetGaze = Offset.zero;
   Offset _microJitter = Offset.zero;
   double _baseSquash = 0.0;
+  
+  // Mood based expressions
+  double _tilt = 0.0;
+  double _cheekSquash = 0.0;
 
   @override
   void initState() {
@@ -55,18 +59,18 @@ class _CozmoEyeWidgetState extends State<CozmoEyeWidget>
   void _initControllers() {
     _pupilController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 400),
     );
     _pupilAnim = Tween(begin: 1.0, end: 1.0).animate(
-      CurvedAnimation(parent: _pupilController, curve: Curves.easeOut),
+      CurvedAnimation(parent: _pupilController, curve: Curves.elasticOut),
     );
 
     _saccadeController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(milliseconds: 250),
     );
     _saccadeAnim = Tween(begin: Offset.zero, end: Offset.zero).animate(
-      CurvedAnimation(parent: _saccadeController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _saccadeController, curve: Curves.easeOutCubic),
     );
 
     _irisColorController = AnimationController(
@@ -96,10 +100,10 @@ class _CozmoEyeWidgetState extends State<CozmoEyeWidget>
 
     _squashController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 200),
     );
     _squashAnim = Tween(begin: 0.0, end: 0.0).animate(
-      CurvedAnimation(parent: _squashController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _squashController, curve: Curves.easeOutQuad),
     );
   }
 
@@ -206,6 +210,7 @@ class _CozmoEyeWidgetState extends State<CozmoEyeWidget>
         end: MoodColors.getColor(widget.mood),
       ).animate(_irisColorController);
       _irisColorController.forward(from: 0);
+      _updateMoodExpressions();
     }
 
     if (old.state != widget.state) {
@@ -222,6 +227,32 @@ class _CozmoEyeWidgetState extends State<CozmoEyeWidget>
     if (old.idleBehavior != widget.idleBehavior) {
       _applyIdleBehavior();
     }
+  }
+
+  void _updateMoodExpressions() {
+    setState(() {
+      switch (widget.mood.toLowerCase()) {
+        case 'angry':
+          _tilt = 0.8;
+          _cheekSquash = 0.0;
+          break;
+        case 'sad':
+          _tilt = -0.7;
+          _cheekSquash = 0.0;
+          break;
+        case 'happy':
+          _tilt = 0.0;
+          _cheekSquash = 0.6;
+          break;
+        case 'curious':
+          _tilt = -0.2; // slight raise
+          _cheekSquash = 0.0;
+          break;
+        default:
+          _tilt = 0.0;
+          _cheekSquash = 0.0;
+      }
+    });
   }
 
   void _applyStateEffects() {
@@ -289,37 +320,67 @@ class _CozmoEyeWidgetState extends State<CozmoEyeWidget>
         final irisColor = _irisColorAnim.value ?? MoodColors.getColor(widget.mood);
         final glowPulse = _glowController.value;
 
-        double extraOsc = 0.0;
+        // Base values
+        double pupilScale = _pupilAnim.value;
+        double blinkSquash = _blinkAnim.value;
+        double idleSquash = _squashAnim.value;
+        
+        double dynamicTilt = _tilt;
+        double dynamicCheek = _cheekSquash;
+        double addedSquash = 0.0;
+        
+        // Highly expressive state-based modifiers (like Vector/Cozmo)
         if (widget.state == FaceState.speaking) {
-          extraOsc = sin(_shimmerController.value * 6 * pi) * 0.06;
+          // Rapid "lip sync" style squashing
+          final speakingPulse = sin(_shimmerController.value * 12 * pi);
+          if (speakingPulse > 0) addedSquash += speakingPulse * 0.25;
+          // Occasional eyebrow raising while talking
+          final browPulse = sin(_shimmerController.value * 4 * pi);
+          if (browPulse > 0.8) dynamicTilt -= (browPulse - 0.8) * 1.5;
         } else if (widget.state == FaceState.thinking) {
-          extraOsc = sin(_shimmerController.value * 2 * pi) * 0.025;
+          // Squinting while calculating
+          addedSquash += 0.3;
+          dynamicTilt += 0.15;
+          pupilScale -= 0.1;
+        } else if (widget.state == FaceState.listening) {
+          // Eyes wide open, eyebrows raised
+          pupilScale += 0.1;
+          dynamicTilt -= 0.2;
         }
-        final pupilScale = _pupilAnim.value + extraOsc;
 
-        final blinkSquash = _blinkAnim.value;
-        final idleSquash = _squashAnim.value;
-        final finalSquash = (blinkSquash + idleSquash).clamp(0.0, 1.0);
+        final finalSquash = (blinkSquash + idleSquash + addedSquash).clamp(0.0, 1.0);
+        
+        // Characteristic asymmetric tilt (like raising one eyebrow)
+        double rightEyeTilt = dynamicTilt;
+        if (widget.mood.toLowerCase() == 'curious' || widget.state == FaceState.listening) {
+          rightEyeTilt += 0.3; 
+        }
 
+        // Distance between eyes
+        // Space them closer together (like Vector) using SizedBox
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Left eye (anisocoria: 2% bigger)
+            // Left eye
             Expanded(
               child: RepaintBoundary(
                 child: CustomPaint(
                   size: Size.infinite,
                   painter: CozmoEyePainter(
-                    pupilScale: pupilScale * 1.02,
+                    pupilScale: pupilScale,
                     gazeOffset: gaze,
                     irisColor: irisColor,
                     glowPulse: glowPulse,
                     squash: finalSquash,
+                    tilt: dynamicTilt,
+                    cheekSquash: dynamicCheek,
+                    isLeftEye: true,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 48),
+            // Less distance between eyes for a more natural robot face
+            const SizedBox(width: 32),
             // Right eye
             Expanded(
               child: RepaintBoundary(
@@ -331,6 +392,9 @@ class _CozmoEyeWidgetState extends State<CozmoEyeWidget>
                     irisColor: irisColor,
                     glowPulse: glowPulse,
                     squash: finalSquash,
+                    tilt: rightEyeTilt, 
+                    cheekSquash: dynamicCheek,
+                    isLeftEye: false,
                   ),
                 ),
               ),

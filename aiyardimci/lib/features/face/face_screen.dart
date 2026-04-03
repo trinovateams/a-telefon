@@ -49,7 +49,7 @@ class _FaceScreenState extends State<FaceScreen>
         final moodColor = MoodColors.getColor(controller.currentMood);
 
         return Scaffold(
-          backgroundColor: const Color(0xFF020202),
+          backgroundColor: const Color(0xFF040A18),
           body: GestureDetector(
             onTap: () {
               setState(() => _showControls = !_showControls);
@@ -75,7 +75,7 @@ class _FaceScreenState extends State<FaceScreen>
                       colors: [
                         moodColor.withValues(alpha: _getMoodGlowIntensity(controller)),
                         Color.lerp(
-                          const Color(0xFF020202),
+                          const Color(0xFF040A18),
                           moodColor.withValues(alpha: 0.04),
                           controller.faceState == FaceState.speaking ? 1.0 : 0.0,
                         )!,
@@ -187,7 +187,7 @@ class _FaceScreenState extends State<FaceScreen>
           icon = Icons.sentiment_dissatisfied_rounded;
           color = Colors.white.withValues(alpha: 0.4);
         } else {
-          final name = controller.wakeName.isEmpty ? 'Alexia' : controller.wakeName;
+          final name = controller.wakeName.isEmpty ? 'Cozmo' : controller.wakeName;
           label = '"Hey $name" de...';
           icon = Icons.hearing_rounded;
           color = Colors.white.withValues(alpha: 0.3);
@@ -460,18 +460,22 @@ class _FaceScreenState extends State<FaceScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(12),
               color: isActive
                   ? color.withValues(alpha: 0.25)
                   : Colors.white.withValues(alpha: 0.08),
               border: Border.all(
                 color: isActive
-                    ? color.withValues(alpha: 0.6)
-                    : Colors.white.withValues(alpha: 0.15),
+                    ? color.withValues(alpha: 0.8)
+                    : Colors.white.withValues(alpha: 0.2),
+                width: 1.5,
               ),
+              boxShadow: isActive ? [
+                BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 10)
+              ] : [],
             ),
             child: Icon(icon, color: color.withValues(alpha: 0.8), size: 20),
           ),

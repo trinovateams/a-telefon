@@ -33,6 +33,7 @@ class LiveAudioService {
   String _wakeName = 'Cozmo';
   String _memoryPrompt = '';
   String _thoughtInjection = '';
+  bool _cozmoMode = true;
 
   // ─── Durum ─────────────────────────────────────────────────────────────────
 
@@ -81,6 +82,7 @@ class LiveAudioService {
   void updateWakeName(String n) => _wakeName = n;
   void updateMemoryPrompt(String p) => _memoryPrompt = p;
   void setThoughtInjection(String thought) => _thoughtInjection = thought;
+  void updateCozmoMode(bool isCozmo) => _cozmoMode = isCozmo;
 
   // ─── Yaşam döngüsü ────────────────────────────────────────────────────────
 
@@ -90,6 +92,9 @@ class LiveAudioService {
     if (_active) return;
     _active = true;
     _reconnecting = false;
+    _speaking = false;
+    _pendingAudioBytes = 0;
+    _firstAudioChunkTime = null;
 
     // Player'ı aç (bir kez)
     if (!_playerOpen) {
@@ -310,7 +315,7 @@ class LiveAudioService {
       final elapsedSec = _firstAudioChunkTime != null
           ? DateTime.now().difference(_firstAudioChunkTime!).inMilliseconds / 1000.0
           : 0.0;
-      final remainingEst = (totalAudioSec - elapsedSec).clamp(0.3, 5.0);
+      final remainingEst = (totalAudioSec - elapsedSec).clamp(0.3, 12.0);
       debugPrint('[LIVE] drain estimate: ${remainingEst.toStringAsFixed(1)}s '
           '(total=${totalAudioSec.toStringAsFixed(1)}s, elapsed=${elapsedSec.toStringAsFixed(1)}s)');
 
@@ -457,7 +462,8 @@ class LiveAudioService {
         'systemInstruction': {
           'parts': [
             {
-              'text': '${AppConstants.hiddenSystemRules.join('\n')}\n\n'
+              'text': '${AppConstants.hiddenSystemRules.join('\n')}\n'
+                  '${_cozmoMode ? '${AppConstants.cozmoHiddenRules.join('\n')}\n' : ''}\n'
                   '$_systemPrompt\n\n'
                   '$wake'
                   '${_thoughtInjection.isNotEmpty ? AppConstants.thoughtInjectionTemplate.replaceAll('{thought}', _thoughtInjection) : ''}'
@@ -503,6 +509,9 @@ class LiveAudioService {
     if (!_active || _reconnecting) return;
     _reconnecting = true;
     _ready = false;
+    _speaking = false;
+    _pendingAudioBytes = 0;
+    _firstAudioChunkTime = null;
     onConnectionStateChange?.call(LiveConnectionState.reconnecting);
     await _stopMic();
     await _player.stopPlayer();

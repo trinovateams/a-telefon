@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/constants/app_constants.dart';
 import 'features/face/face_screen.dart';
 
 class AiFaceApp extends StatelessWidget {
@@ -25,7 +26,7 @@ class AiFaceApp extends StatelessWidget {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     return MaterialApp(
-      title: 'AI Yardımcı',
+      title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
